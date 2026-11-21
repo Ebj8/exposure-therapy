@@ -18,7 +18,8 @@ struct LibrarySnapshot {
         progress = LibraryProgress(
             index: index,
             reviewedIDs: Set(decisions.lazy.filter(\.countsAsReviewed).map(\.assetID)),
-            deletedMonthKeys: deletedPhotos.map(\.monthKey)
+            deletedMonthKeys: deletedPhotos.map(\.monthKey),
+            deletedIDs: Set(deletedPhotos.map(\.assetID))
         )
         let finished = sessions.filter {
             Stats.countsTowardStreak(endedAt: $0.endedAt, keptCount: $0.keptCount, deletedCount: $0.deletedCount)

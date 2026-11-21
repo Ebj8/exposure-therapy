@@ -202,9 +202,18 @@ struct SessionCompleteView: View {
 
     // MARK: Buttons
 
-    /// The next unfinished month after this session's month.
+    /// Where "Keep going" leads: this session's month if it isn't finished
+    /// yet (you tapped Done partway through), otherwise the next unfinished month.
     private func nextMonth(in progress: LibraryProgress) -> MonthKey? {
         let current = session?.monthKey.flatMap(MonthKey.init(rawValue:))
+        if let current {
+            switch progress.month(current).status {
+            case .inProgress, .notStarted:
+                return current
+            case .done, .noPhotos:
+                break
+            }
+        }
         return progress.nextUnfinishedMonth(after: current)
     }
 

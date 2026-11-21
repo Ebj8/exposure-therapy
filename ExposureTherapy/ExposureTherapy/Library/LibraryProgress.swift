@@ -53,7 +53,10 @@ nonisolated struct LibraryProgress: Sendable {
     ///   - index: The current library.
     ///   - reviewedIDs: Asset IDs with a keep, heart or album decision.
     ///   - deletedMonthKeys: `DeletedPhoto.monthKey` for every deleted photo.
-    init(index: LibraryIndex, reviewedIDs: Set<String>, deletedMonthKeys: [String]) {
+    ///   - deletedIDs: Asset IDs of deleted photos. Right after a Breakup the
+    ///     index can still list them until PhotoKit reports the change; they're
+    ///     skipped so they aren't counted twice.
+    init(index: LibraryIndex, reviewedIDs: Set<String>, deletedMonthKeys: [String], deletedIDs: Set<String> = []) {
         var deletedPerMonth: [String: Int] = [:]
         for key in deletedMonthKeys {
             deletedPerMonth[key, default: 0] += 1
@@ -65,10 +68,15 @@ nonisolated struct LibraryProgress: Sendable {
 
         for (key, ids) in index.months {
             let deleted = deletedPerMonth.removeValue(forKey: key.rawValue) ?? 0
-            let reviewedHere = ids.reduce(0) { $0 + (reviewedIDs.contains($1) ? 1 : 0) } + deleted
-            months[key] = MonthProgress(key: key, total: ids.count + deleted, reviewed: reviewedHere)
-            total += ids.count + deleted
-            reviewed += reviewedHere
+            var present = 0
+            var reviewedPresent = 0
+            for id in ids where !deletedIDs.contains(id) {
+                present += 1
+                if reviewedIDs.contains(id) { reviewedPresent += 1 }
+            }
+            months[key] = MonthProgress(key: key, total: present + deleted, reviewed: reviewedPresent + deleted)
+            total += present + deleted
+            reviewed += reviewedPresent + deleted
         }
 
         // Months where every photo has been deleted still count, and are done.
@@ -81,8 +89,10 @@ nonisolated struct LibraryProgress: Sendable {
         }
 
         // The undated bucket counts toward the library totals but has no tile.
-        total += index.undated.count
-        reviewed += index.undated.reduce(0) { $0 + (reviewedIDs.contains($1) ? 1 : 0) }
+        for id in index.undated where !deletedIDs.contains(id) {
+            total += 1
+            if reviewedIDs.contains(id) { reviewed += 1 }
+        }
 
         let sortedKeys = months.keys.sorted()
         if let first = sortedKeys.first, let last = sortedKeys.last {
