@@ -387,9 +387,19 @@ struct GalleryDeckView: View {
     // MARK: Actions
 
     /// Next page. Moving on from an undecided photo keeps it.
+    /// Next page. On the month's last photo there's no next page, so it
+    /// goes to review instead (after ✓, ♡ or an album, the photo is decided).
     private func goForward(keepingCurrent: Bool) {
-        guard let currentID = model.currentID, !isOnLastPage else {
+        guard let currentID = model.currentID else {
             springBack()
+            return
+        }
+        if isOnLastPage {
+            if keepingCurrent {
+                finishFromLastPhoto()
+            } else {
+                finishSession()
+            }
             return
         }
         if keepingCurrent && model.effectiveDecision(for: currentID) == nil {
@@ -461,7 +471,10 @@ struct GalleryDeckView: View {
                 dragOffset = .zero
                 dragAxis = nil
             }
-            if !isOnLastPage {
+            if isOnLastPage {
+                // That was the month's last photo: on to review.
+                finishSession()
+            } else {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                     model.moveTo(page: model.position + 1)
                 }
