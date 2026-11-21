@@ -12,8 +12,6 @@ struct SwipeCardView: View {
     let assetID: String
     /// Image size to request, in pixels.
     let targetSize: CGSize
-    /// 0 to 1; follows how far the photo is dragged up.
-    var unmatchOpacity: Double = 0
 
     @Environment(PhotoLibrary.self) private var library
     @State private var photo: CardPhoto?
@@ -95,11 +93,6 @@ struct SwipeCardView: View {
                     chips(for: photo)
                 }
             }
-            .overlay(alignment: .topTrailing) {
-                StampView(text: "UNMATCH", color: .coral, angle: 14)
-                    .opacity(unmatchOpacity)
-                    .padding(28)
-            }
             .shadow(color: .plum.opacity(0.18), radius: 18, y: 10)
     }
 
@@ -149,32 +142,10 @@ private struct ChipView: View {
     }
 }
 
-/// The tilted UNMATCH stamp.
-private struct StampView: View {
-    let text: String
-    let color: Color
-    let angle: Double
-
-    var body: some View {
-        Text(text)
-            .font(.bricolage(32))
-            .foregroundStyle(color)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-            .background(.cream, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(color, lineWidth: 4)
-            }
-            .rotationEffect(.degrees(angle))
-            .accessibilityHidden(true)
-    }
-}
-
 #Preview {
     VStack(spacing: 20) {
         SwipeCardView(assetID: "preview-2019-06-12", targetSize: CGSize(width: 600, height: 800))
-        SwipeCardView(assetID: "preview-2019-06-13", targetSize: CGSize(width: 600, height: 800), unmatchOpacity: 0.6)
+        SwipeCardView(assetID: "preview-2019-06-13", targetSize: CGSize(width: 600, height: 800))
     }
     .padding(20)
     .background(.cream)

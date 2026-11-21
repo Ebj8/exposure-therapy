@@ -43,7 +43,7 @@ Put every color below in the asset catalog as a named color, and use the names i
 | line | #F3DAD3 | Progress tracks, card borders |
 | teal | #0B6E6E | "Reviewed" badge, done months, "Back together" badge |
 | tealLight | #DDF1EF | Done badge backgrounds |
-| coral | #D9442B | Discard button and UNMATCH stamp, delete badges |
+| coral | #D9442B | Discard button, delete badges |
 | white | #FFFFFF | Cards, buttons on cream |
 
 **Type**
@@ -166,7 +166,7 @@ Every gesture also has a button, so the app is usable without swiping. Nothing i
 
 - A drag locks to sideways (browse) or up (break up) within the first few points.
 - Sideways: the gallery follows the finger and pages at 70 pt or a fast flick, rubber-banding at the first photo. On the last photo, the same swipe slides it off like a page turn and opens review instead.
-- Up: the photo follows the finger and a coral "UNMATCH" stamp (top-right, tilted 14°) fades in with the distance. Past 120 pt or a fast flick, the photo flies off the top and the next photo slides into its place; otherwise it springs back.
+- Up: the photo follows the finger. Past 120 pt or a fast flick, it flies off the top and the next photo slides into its place; otherwise it springs back. (No stamp: it was hard to see mid-swipe.)
 - The ✕ button plays the same fly-off.
 - Double-tap shows a rose heart that pops and fades over the photo, then the next photo slides in.
 
@@ -341,7 +341,7 @@ Meet the "Done when" line exactly. Don't start the next milestone.
 
 **Fixing things**
 
-- Point at one thing and quote the spec: "The UNMATCH stamp should be tilted 14° and coral per SPEC.md; right now it's flat and black. Fix only that."
+- Point at one thing and quote the spec: "The Discard button should be white with a coral border per SPEC.md; right now it's solid red. Fix only that."
 - For a build error, paste the whole error message and ask for the smallest fix.
 - If Claude drifts off the design, say "Compare the Home screen to SPEC.md section 1 line by line and list every difference before changing anything."
 

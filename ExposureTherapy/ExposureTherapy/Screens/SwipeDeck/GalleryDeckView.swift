@@ -261,11 +261,7 @@ struct GalleryDeckView: View {
             ? (dragOffset.height < 0 ? dragOffset.height : dragOffset.height * 0.2)
             : 0
 
-        return SwipeCardView(
-            assetID: assetID,
-            targetSize: pixelSize,
-            unmatchOpacity: isCurrent ? Double(min(max(-vertical / commitDistance, 0), 1)) : 0
-        )
+        return SwipeCardView(assetID: assetID, targetSize: pixelSize)
         .overlay(alignment: .top) {
             if decision != nil {
                 reviewedPill
