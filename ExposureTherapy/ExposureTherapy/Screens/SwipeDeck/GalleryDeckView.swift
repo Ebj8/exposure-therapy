@@ -42,9 +42,6 @@ struct GalleryDeckView: View {
     private let pageDistance: CGFloat = 70
     private let flickVelocity: CGFloat = 700
     private let pageGap: CGFloat = 16
-    /// How far the last photo follows a left drag: enough to feel it move
-    /// toward "Finish", with a little resistance.
-    private let lastPageDrag: CGFloat = 0.6
 
     init(mode: DeckMode) {
         _model = State(initialValue: SwipeDeckModel(mode: mode))
@@ -111,6 +108,13 @@ struct GalleryDeckView: View {
             // Back from Your exes ("Not yet, keep swiping"): don't land on a
             // photo you just broke up with, and allow finishing again.
             if didFinish {
+                // Put the slid-off photo back in place, unanimated.
+                var reset = Transaction()
+                reset.disablesAnimations = true
+                withTransaction(reset) {
+                    dragOffset = .zero
+                    dragAxis = nil
+                }
                 model.moveTo(page: model.position)
             }
             didFinish = false
@@ -224,8 +228,6 @@ struct GalleryDeckView: View {
                     pageView(page.assetID, offset: page.offset, size: proxy.size)
                 }
 
-                finishMarker
-
                 // Pops over the photo on a heart.
                 Image(systemName: "heart.fill")
                     .font(.system(size: 120))
@@ -276,30 +278,6 @@ struct GalleryDeckView: View {
         .accessibilityValue(decision == nil ? "Not decided" : "Reviewed, kept")
     }
 
-    /// On the last photo, dragging left reveals where releasing will take
-    /// you, so finishing the month reads as a swipe, not a dead end.
-    private var finishMarker: some View {
-        let progress = isOnLastPage && dragAxis == .horizontal
-            ? min(max(-dragOffset.width / (pageDistance * lastPageDrag), 0), 1)
-            : 0
-        return HStack {
-            Spacer()
-            VStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(.rose)
-                Text("Finish")
-                    .font(.inter(14, .bold))
-                    .foregroundStyle(.plum)
-            }
-            .padding(.trailing, 4)
-            .scaleEffect(0.8 + 0.2 * progress)
-            .opacity(progress)
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-
     private var reviewedPill: some View {
         Label("Reviewed", systemImage: "checkmark")
             .font(.inter(13, .bold))
@@ -346,14 +324,10 @@ struct GalleryDeckView: View {
                     dragAxis = abs(value.translation.width) > abs(value.translation.height) ? .horizontal : .vertical
                 }
                 var translation = value.translation
-                if dragAxis == .horizontal {
-                    if model.position == 0 && translation.width > 0 {
-                        // Rubber-band at the first photo: nothing before it.
-                        translation.width *= 0.3
-                    } else if isOnLastPage && translation.width < 0 {
-                        // The last photo moves toward "Finish".
-                        translation.width *= lastPageDrag
-                    }
+                if dragAxis == .horizontal && model.position == 0 && translation.width > 0 {
+                    // Rubber-band at the first photo: nothing before it. (The
+                    // last photo follows the finger: swiping on finishes.)
+                    translation.width *= 0.3
                 }
                 dragOffset = translation
             }
@@ -436,14 +410,25 @@ struct GalleryDeckView: View {
     }
 
     /// Swiping on past the month's last photo: keep it if it's undecided,
-    /// then go to review (Your exes, or Session complete with no exes).
+    /// slide it off like turning to the next photo, then go to review (Your
+    /// exes, or Session complete with no exes).
     private func finishFromLastPhoto() {
-        springBack()
         if let currentID = model.currentID, model.effectiveDecision(for: currentID) == nil {
             model.record(.keep, for: currentID, context: modelContext)
             noteDecision()
         }
-        finishSession()
+        isAnimating = true
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            dragAxis = .horizontal
+            dragOffset = CGSize(width: -(cardSize.width + pageGap), height: 0)
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(250))
+            // The photo stays slid off while the next screen comes in; it's
+            // put back in .onAppear if you return.
+            finishSession()
+            isAnimating = false
+        }
     }
 
     /// Goes to review once per visit, whichever way the session ends. If you

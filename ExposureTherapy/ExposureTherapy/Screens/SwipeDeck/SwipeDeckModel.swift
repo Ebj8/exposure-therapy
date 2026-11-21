@@ -399,9 +399,9 @@ final class SwipeDeckModel {
             session.endedAt = .now
             try? context.save()
             self.session = nil
-            // Undo only reaches back through the current session.
-            history = []
-            actions = []
+            // history and actions are left as they are: the deck is on its way
+            // out to Session complete (which has no way back to it), and
+            // clearing them would flash it empty during the transition.
         }
         return .sessionComplete(sessionID: endedID)
     }
