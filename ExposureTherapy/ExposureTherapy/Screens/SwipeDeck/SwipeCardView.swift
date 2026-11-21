@@ -19,6 +19,14 @@ struct SwipeCardView: View {
     @Environment(PhotoLibrary.self) private var library
     @State private var photo: CardPhoto?
     @State private var didFail = false
+    /// Bumped by "Try again" to load the photo once more.
+    @State private var attempt = 0
+
+    /// What a load depends on: the size, and which try this is.
+    private struct LoadKey: Equatable {
+        let size: CGSize
+        let attempt: Int
+    }
 
     private let shape = RoundedRectangle(cornerRadius: Radius.swipeCard, style: .continuous)
 
@@ -41,7 +49,7 @@ struct SwipeCardView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // The whole slot stays draggable, even beside a wide photo.
         .contentShape(Rectangle())
-        .task(id: targetSize) {
+        .task(id: LoadKey(size: targetSize, attempt: attempt)) {
             guard targetSize.width > 0, photo == nil else { return }
             let loaded = await library.cardPhoto(for: assetID, targetSize: targetSize)
             withAnimation(.easeOut(duration: 0.2)) {
@@ -49,7 +57,7 @@ struct SwipeCardView: View {
                 didFail = loaded == nil
             }
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: didFail ? .contain : .ignore)
         .accessibilityLabel(accessibilityDescription)
     }
 
@@ -63,9 +71,21 @@ struct SwipeCardView: View {
                         .resizable()
                         .scaledToFill()
                 } else if didFail {
-                    Label("Couldn't load this photo", systemImage: "exclamationmark.triangle")
-                        .font(.inter(15, .semibold))
-                        .foregroundStyle(.muted)
+                    VStack(spacing: 12) {
+                        Label("Couldn't load this photo", systemImage: "exclamationmark.triangle")
+                            .font(.inter(15, .semibold))
+                            .foregroundStyle(.muted)
+                        Button("Try again") {
+                            didFail = false
+                            attempt += 1
+                        }
+                        .font(.inter(15, .bold))
+                        .foregroundStyle(.roseDark)
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: Size.minTapTarget)
+                        .background(.blush, in: Capsule())
+                        .buttonStyle(.plain)
+                    }
                 } else {
                     SkeletonView()
                 }

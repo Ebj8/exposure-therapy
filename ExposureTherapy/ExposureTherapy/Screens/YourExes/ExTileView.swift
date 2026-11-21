@@ -15,6 +15,7 @@ struct ExTileView: View {
 
     @Environment(PhotoLibrary.self) private var library
     @State private var image: UIImage?
+    @State private var didFail = false
 
     private let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
 
@@ -26,9 +27,12 @@ struct ExTileView: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else if didFail {
+                    Image(systemName: "photo")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.muted)
                 } else {
-                    ProgressView()
-                        .tint(.rose)
+                    SkeletonView()
                 }
             }
             .overlay {
@@ -70,6 +74,7 @@ struct ExTileView: View {
             .task(id: targetSize) {
                 guard targetSize.width > 0, image == nil else { return }
                 image = await library.thumbnail(for: assetID, targetSize: targetSize)
+                didFail = image == nil
             }
     }
 }

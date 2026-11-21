@@ -57,9 +57,18 @@ struct RootView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Photo access may have changed in the Settings app.
-            if phase == .active {
-                Task { await library.refreshAuthorization() }
+            switch phase {
+            case .background:
+                library.appDidEnterBackground()
+            case .active:
+                Task {
+                    // After a long absence, refresh PhotoKit before it's needed.
+                    await library.appDidBecomeActive()
+                    // Photo access may have changed in the Settings app.
+                    await library.refreshAuthorization()
+                }
+            default:
+                break
             }
         }
     }

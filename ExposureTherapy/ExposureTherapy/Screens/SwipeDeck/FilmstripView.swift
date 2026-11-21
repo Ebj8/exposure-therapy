@@ -98,6 +98,7 @@ private struct FilmstripThumb: View {
 
     @Environment(PhotoLibrary.self) private var library
     @State private var image: UIImage?
+    @State private var didFail = false
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -111,6 +112,13 @@ private struct FilmstripThumb: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else if didFail {
+                    Color.line
+                        .overlay {
+                            Image(systemName: "photo")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.muted)
+                        }
                 } else {
                     SkeletonView()
                 }
@@ -131,7 +139,9 @@ private struct FilmstripThumb: View {
                     .offset(x: 4, y: -4)
             }
             .task(id: assetID) {
+                didFail = false
                 image = await library.thumbnail(for: assetID, targetSize: targetSize)
+                didFail = image == nil
             }
     }
 
