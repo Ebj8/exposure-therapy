@@ -24,8 +24,6 @@ struct GalleryDeckView: View {
     /// True while a page change or break-up animates, so input can't overlap.
     @State private var isAnimating = false
     @State private var cardSize: CGSize = .zero
-    /// A photo that just flew off the top, hidden while the next one slides in.
-    @State private var hiddenID: String?
     @State private var isShowingHeart = false
     @State private var isPickingAlbum = false
     @State private var peek: PeekRequest?
@@ -106,7 +104,7 @@ struct GalleryDeckView: View {
             // Back from Your exes ("Not yet, keep swiping"): don't land on a
             // photo you just broke up with, and allow finishing again.
             if didFinish {
-                stepBackFromEx()
+                model.moveTo(page: model.position)
             }
             didFinish = false
         }
@@ -145,7 +143,7 @@ struct GalleryDeckView: View {
                 Text(model.title)
                     .font(.bricolage(20, relativeTo: .headline))
                     .foregroundStyle(.plum)
-                if !model.pages.isEmpty {
+                if !model.visiblePages.isEmpty {
                     Text(positionText)
                         .font(.inter(14, relativeTo: .subheadline))
                         .foregroundStyle(.muted)
@@ -176,7 +174,7 @@ struct GalleryDeckView: View {
             // Today's count is decisions toward the goal, not the page.
             return "\(model.dailyOffset + model.decidedInQueue) of \(model.dailyOffset + model.queue.count) today"
         case .month:
-            return "\(model.position + 1) of \(model.pages.count)"
+            return "\(model.position + 1) of \(model.visiblePages.count)"
         }
     }
 
@@ -198,24 +196,25 @@ struct GalleryDeckView: View {
     // MARK: Pager
 
     /// The previous, current and next photos, with their offset from the current page.
-    private var visiblePages: [(assetID: String, offset: Int)] {
+    private var pagerSlots: [(assetID: String, offset: Int)] {
         // Check first: the queue is empty until the deck loads, and an empty
         // range here would crash.
-        guard !model.pages.isEmpty else { return [] }
+        let pages = model.visiblePages
+        guard !pages.isEmpty else { return [] }
         let lower = max(model.position - 1, 0)
-        let upper = min(model.position + 1, model.pages.count - 1)
+        let upper = min(model.position + 1, pages.count - 1)
         guard lower <= upper else { return [] }
-        return (lower...upper).map { (model.pages[$0], $0 - model.position) }
+        return (lower...upper).map { (pages[$0], $0 - model.position) }
     }
 
     private var pager: some View {
         GeometryReader { proxy in
             ZStack {
-                if model.isLoaded && model.pages.isEmpty {
+                if model.isLoaded && model.visiblePages.isEmpty {
                     emptyState
                 }
 
-                ForEach(visiblePages, id: \.assetID) { page in
+                ForEach(pagerSlots, id: \.assetID) { page in
                     pageView(page.assetID, offset: page.offset, size: proxy.size)
                 }
 
@@ -257,34 +256,25 @@ struct GalleryDeckView: View {
             targetSize: pixelSize,
             unmatchOpacity: isCurrent ? Double(min(max(-vertical / commitDistance, 0), 1)) : 0
         )
-        .overlay {
-            if decision == .unmatch {
-                RoundedRectangle(cornerRadius: Radius.swipeCard, style: .continuous)
-                    .fill(.plum.opacity(0.45))
-                    .allowsHitTesting(false)
-            }
-        }
         .overlay(alignment: .top) {
-            if let decision {
-                statusPill(for: decision)
+            if decision != nil {
+                reviewedPill
                     .padding(.top, 16)
             }
         }
         .frame(width: size.width, height: size.height)
         .offset(x: CGFloat(offset) * (size.width + pageGap) + horizontal, y: vertical)
-        .opacity(assetID == hiddenID ? 0 : 1)
         .accessibilityHidden(!isCurrent)
         .accessibilityValue(decision.map(accessibilityStatus) ?? "Not decided")
     }
 
-    private func statusPill(for decision: Decision) -> some View {
-        let isEx = decision == .unmatch
-        return Label(isEx ? "Ex · tap ✓ to take back" : "Reviewed", systemImage: isEx ? "xmark" : "checkmark")
+    private var reviewedPill: some View {
+        Label("Reviewed", systemImage: "checkmark")
             .font(.inter(13, .bold))
             .foregroundStyle(.brandWhite)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(isEx ? Color.coral : Color.brandTeal, in: Capsule())
+            .background(.brandTeal, in: Capsule())
     }
 
     private func accessibilityStatus(_ decision: Decision) -> String {
@@ -321,7 +311,7 @@ struct GalleryDeckView: View {
     }
 
     private var isOnLastPage: Bool {
-        model.position >= model.pages.count - 1
+        model.position >= model.visiblePages.count - 1
     }
 
     private var pagerGesture: some Gesture {
@@ -429,17 +419,6 @@ struct GalleryDeckView: View {
         finishSession()
     }
 
-    /// If the current photo is an ex, moves to the nearest earlier photo
-    /// that isn't, so you pick up on a keeper. Rescues on Your exes count:
-    /// a rescued photo is a keep again, so you stay on it.
-    private func stepBackFromEx() {
-        guard let currentID = model.currentID, model.effectiveDecision(for: currentID) == .unmatch else { return }
-        let earlier = model.pages[..<model.position].lastIndex { model.effectiveDecision(for: $0) != .unmatch }
-        if let earlier {
-            model.moveTo(page: earlier)
-        }
-    }
-
     /// Goes to review once per visit, whichever way the session ends. If you
     /// only browsed (re-reviewing a month without changing anything), there's
     /// nothing to review, so it goes back instead.
@@ -469,51 +448,33 @@ struct GalleryDeckView: View {
         }
     }
 
-    /// Swipe up or ✕: the photo flies off the top, becomes an ex, and the
-    /// next photo slides in.
+    /// Swipe up or ✕: the photo flies off the top and leaves the gallery
+    /// as an ex; the next photo slides into its place.
     private func breakUpCurrent() {
         guard !isAnimating, canBreakUpCurrent, let assetID = model.currentID else { return }
         isAnimating = true
+        let wasLastPhoto = isOnLastPage
         withAnimation(.easeIn(duration: 0.22)) {
             dragAxis = .vertical
             dragOffset = CGSize(width: 0, height: -(cardSize.height * 1.5 + 100))
         }
         Task {
             try? await Task.sleep(for: .milliseconds(220))
-            model.record(.unmatch, for: assetID, context: modelContext)
-            noteDecision()
-
-            // Put the card back in its slot unseen, then slide to the next one.
-            var reset = Transaction()
-            reset.disablesAnimations = true
-            withTransaction(reset) {
-                hiddenID = assetID
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                model.record(.unmatch, for: assetID, context: modelContext)
                 dragOffset = .zero
                 dragAxis = nil
             }
-            if isOnLastPage {
-                // That was the month's last photo: on to review.
+            noteDecision()
+            if wasLastPhoto {
+                // That was the month's last photo: on to review. The last
+                // kept photo is where you'll pick up if you come back.
+                model.moveTo(page: model.position)
                 finishSession()
-            } else {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                    model.moveTo(page: model.position + 1)
-                }
             }
-            try? await Task.sleep(for: .milliseconds(320))
-            withAnimation(.easeOut(duration: 0.2)) {
-                hiddenID = nil
-            }
+            try? await Task.sleep(for: .milliseconds(300))
             isAnimating = false
         }
-    }
-
-    /// ✓ on an ex: takes it back as a keep and stays on it.
-    private func takeBackCurrent() {
-        guard !isAnimating, let assetID = model.currentID else { return }
-        withAnimation(.easeOut(duration: 0.2)) {
-            model.record(.keep, for: assetID, context: modelContext)
-        }
-        noteDecision()
     }
 
     private func heart() {
@@ -578,7 +539,7 @@ struct GalleryDeckView: View {
                 await library.removeFromAlbum(assetID: undone.assetID, albumID: albumID)
             }
         }
-        if let page = model.pages.firstIndex(of: undone.assetID) {
+        if let page = model.visiblePages.firstIndex(of: undone.assetID) {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                 model.moveTo(page: page)
                 dragOffset = .zero
@@ -590,7 +551,7 @@ struct GalleryDeckView: View {
     /// Filmstrip tap: jump to the photo if it's in this session, otherwise peek.
     private func selectFromFilmstrip(_ assetID: String) {
         guard !isAnimating else { return }
-        if let page = model.pages.firstIndex(of: assetID) {
+        if let page = model.visiblePages.firstIndex(of: assetID) {
             lockInput(for: .milliseconds(300))
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                 model.moveTo(page: page)
@@ -608,37 +569,30 @@ struct GalleryDeckView: View {
     }
 
     private func prefetchAround() {
-        guard cardSize.width > 0, !model.pages.isEmpty else { return }
+        let pages = model.visiblePages
+        guard cardSize.width > 0, !pages.isEmpty else { return }
         let start = max(model.position - 1, 0)
-        let end = min(model.position + 3, model.pages.count - 1)
+        let end = min(model.position + 3, pages.count - 1)
         guard start <= end else { return }
-        library.prefetchCards(Array(model.pages[start...end]), targetSize: pixelSize)
+        library.prefetchCards(Array(pages[start...end]), targetSize: pixelSize)
     }
 
     // MARK: Buttons
 
     /// Undo on the left; Album, Discard and Favorite grouped and centered
-    /// on the screen, with Discard large in the middle. On an ex, Discard
-    /// becomes Take back.
+    /// on the screen, with Discard large in the middle.
     private var buttonRow: some View {
-        let isEx = model.currentID.flatMap(model.effectiveDecision(for:)) == .unmatch
-        return ZStack {
+        ZStack {
             HStack(spacing: 14) {
                 DeckActionButton(systemImage: "plus.square", accessibilityLabel: "Add to album", kind: .plain(.plum), diameter: 48) {
                     isPickingAlbum = true
                 }
                 .disabled(!isCurrentEditable)
 
-                if isEx {
-                    DeckActionButton(systemImage: "checkmark", accessibilityLabel: "Take back", kind: .match, diameter: 68) {
-                        takeBackCurrent()
-                    }
-                } else {
-                    DeckActionButton(systemImage: "xmark", accessibilityLabel: "Break up", kind: .unmatch, diameter: 68) {
-                        breakUpCurrent()
-                    }
-                    .disabled(!canBreakUpCurrent)
+                DeckActionButton(systemImage: "xmark", accessibilityLabel: "Break up", kind: .unmatch, diameter: 68) {
+                    breakUpCurrent()
                 }
+                .disabled(!canBreakUpCurrent)
 
                 DeckActionButton(systemImage: "heart", accessibilityLabel: "Heart", kind: .plain(.rose), diameter: 48) {
                     heart()

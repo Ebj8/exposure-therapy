@@ -26,8 +26,7 @@ final class SwipeDeckModel {
     /// This session's decisions, oldest first, for multi-step undo.
     private(set) var history: [PhotoDecision] = []
 
-    /// Gallery style: every photo of the month to browse, decided or not.
-    /// `position` indexes this instead of `queue` when browsing.
+    /// Gallery style: every photo of the month, decided or not.
     private(set) var pages: [String] = []
     private(set) var browsesWholeMonth = false
 
@@ -80,8 +79,20 @@ final class SwipeDeckModel {
     }
 
     var currentID: String? {
-        let list = browsesWholeMonth ? pages : queue
+        let list = browsesWholeMonth ? visiblePages : queue
         return list.indices.contains(position) ? list[position] : nil
+    }
+
+    /// Gallery style: the month's photos minus exes. Breaking up removes a
+    /// photo from the gallery; undo or a rescue on Your exes brings it back
+    /// in its place. `position` indexes this list when browsing.
+    var visiblePages: [String] {
+        let sessionIDs = Set(history.map(\.assetID))
+        var exIDs = Set(history.filter { $0.decision == .unmatch }.map(\.assetID))
+        for (assetID, decision) in earlierDecisions where decision == .unmatch && !sessionIDs.contains(assetID) {
+            exIDs.insert(assetID)
+        }
+        return pages.filter { !exIDs.contains($0) }
     }
 
     var nextID: String? {
@@ -174,7 +185,7 @@ final class SwipeDeckModel {
                 }
             }
             browsesWholeMonth = true
-            position = queue.first.flatMap { pages.firstIndex(of: $0) } ?? 0
+            position = queue.first.flatMap { visiblePages.firstIndex(of: $0) } ?? 0
         }
         isLoaded = true
     }
@@ -348,7 +359,7 @@ final class SwipeDeckModel {
 
     /// Shows a page without deciding anything.
     func moveTo(page: Int) {
-        let count = browsesWholeMonth ? pages.count : queue.count
+        let count = browsesWholeMonth ? visiblePages.count : queue.count
         position = min(max(page, 0), max(count - 1, 0))
     }
 
