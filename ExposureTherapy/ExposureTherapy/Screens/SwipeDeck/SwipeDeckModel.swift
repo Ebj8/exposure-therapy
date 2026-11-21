@@ -42,6 +42,7 @@ final class SwipeDeckModel {
     /// Decisions from earlier sessions, for marking neighbors in the filmstrip.
     /// This session's are read live from `history`, so rescues show up too.
     @ObservationIgnored private var earlierDecisions: [String: Decision] = [:]
+    @ObservationIgnored private var isLoading = false
 
     init(mode: DeckMode) {
         self.mode = mode
@@ -124,34 +125,36 @@ final class SwipeDeckModel {
     /// - Parameter browseWholeMonth: Gallery style. Pages are every photo of
     ///   the month (so you can swipe back to ones already decided), opening on
     ///   the first one still to decide. `queue` stays the photos to decide.
-    func load(index: LibraryIndex, dailyGoal: Int, browseWholeMonth: Bool = false, context: ModelContext) {
-        guard !isLoaded else { return }
+    func load(index: LibraryIndex, dailyGoal: Int, browseWholeMonth: Bool = false, context: ModelContext) async {
+        guard !isLoaded, !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        // Let the screen finish sliding in first (the skeleton shows
+        // meanwhile), so the work below can't stall the transition.
+        try? await Task.sleep(for: .milliseconds(350))
         self.index = index
 
         // Skip anything already decided, including exes still waiting for a Breakup.
         let allDecisions = (try? context.fetch(FetchDescriptor<PhotoDecision>())) ?? []
         let decided = Set(allDecisions.map(\.assetID))
-        switch mode {
-        case .daily:
+        var doneToday = 0
+        if case .daily = mode {
             let sessions = (try? context.fetch(FetchDescriptor<Session>())) ?? []
-            let doneToday = DailyPlan.doneToday(decisions: allDecisions, sessions: sessions)
+            doneToday = DailyPlan.doneToday(decisions: allDecisions, sessions: sessions)
             // After today's goal is met, "Keep going anyway" starts a fresh count.
             dailyOffset = doneToday < dailyGoal ? doneToday : 0
-            let queued = DailyPlan.queue(
-                index: index,
-                excluding: decided,
-                limit: DailyPlan.batchSize(goal: dailyGoal, doneToday: doneToday)
-            )
-            queue = queued.map(\.assetID)
-            for photo in queued {
-                queueMonths[photo.assetID] = photo.month
-            }
-        case .month(let key):
-            queue = (index.months[key] ?? []).filter { !decided.contains($0) }
-            for assetID in queue {
-                queueMonths[assetID] = key
-            }
         }
+
+        // Walking the library to build the queue runs off the main thread.
+        let mode = self.mode
+        let plan = await Task.detached(priority: .userInitiated) {
+            DeckPlan(mode: mode, index: index, decided: decided, dailyGoal: dailyGoal,
+                     doneToday: doneToday, browseWholeMonth: browseWholeMonth)
+        }.value
+        queue = plan.queue
+        queueMonths = plan.queueMonths
+        pages = plan.pages
 
         session = openSession(context: context)
         if let session {
@@ -172,18 +175,6 @@ final class SwipeDeckModel {
         }
 
         if browseWholeMonth {
-            let month: MonthKey?
-            switch mode {
-            case .month(let key): month = key
-            case .daily: month = queue.first.flatMap { queueMonths[$0] }
-            }
-            // Undated photos have no month to browse, so just the queue.
-            pages = month.flatMap { index.months[$0] } ?? queue
-            if let month {
-                for assetID in pages where queueMonths[assetID] == nil {
-                    queueMonths[assetID] = month
-                }
-            }
             browsesWholeMonth = true
             position = queue.first.flatMap { visiblePages.firstIndex(of: $0) } ?? 0
         }
@@ -525,5 +516,46 @@ final class SwipeDeckModel {
             galleryActions = []
         }
         return .sessionComplete(sessionID: endedID)
+    }
+}
+
+/// The deck's queue and pages, built off the main thread from plain values.
+nonisolated struct DeckPlan: Sendable {
+    var queue: [String] = []
+    var queueMonths: [String: MonthKey] = [:]
+    var pages: [String] = []
+
+    init(mode: DeckMode, index: LibraryIndex, decided: Set<String>, dailyGoal: Int, doneToday: Int, browseWholeMonth: Bool) {
+        switch mode {
+        case .daily:
+            let queued = DailyPlan.queue(
+                index: index,
+                excluding: decided,
+                limit: DailyPlan.batchSize(goal: dailyGoal, doneToday: doneToday)
+            )
+            queue = queued.map(\.assetID)
+            for photo in queued {
+                queueMonths[photo.assetID] = photo.month
+            }
+        case .month(let key):
+            queue = (index.months[key] ?? []).filter { !decided.contains($0) }
+            for assetID in queue {
+                queueMonths[assetID] = key
+            }
+        }
+
+        guard browseWholeMonth else { return }
+        let month: MonthKey?
+        switch mode {
+        case .month(let key): month = key
+        case .daily: month = queue.first.flatMap { queueMonths[$0] }
+        }
+        // Undated photos have no month to browse, so just the queue.
+        pages = month.flatMap { index.months[$0] } ?? queue
+        if let month {
+            for assetID in pages where queueMonths[assetID] == nil {
+                queueMonths[assetID] = month
+            }
+        }
     }
 }

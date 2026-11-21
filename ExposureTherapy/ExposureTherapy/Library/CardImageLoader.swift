@@ -48,16 +48,21 @@ nonisolated final class CardImageLoader: @unchecked Sendable {
         return await requestImage(for: asset, targetSize: targetSize)
     }
 
-    /// Starts loading upcoming cards into the cache.
+    /// Starts loading upcoming cards into the cache. The asset lookup runs
+    /// in the background so it never holds up the screen.
     func startCaching(_ assetIDs: [String], targetSize: CGSize) {
         guard !assetIDs.isEmpty else { return }
-        manager.startCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: .aspectFill, options: Self.options)
+        DispatchQueue.global(qos: .utility).async { [manager] in
+            manager.startCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: .aspectFill, options: Self.options)
+        }
     }
 
     /// Frees cached images for cards that have been decided.
     func stopCaching(_ assetIDs: [String], targetSize: CGSize) {
         guard !assetIDs.isEmpty else { return }
-        manager.stopCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: .aspectFill, options: Self.options)
+        DispatchQueue.global(qos: .utility).async { [manager] in
+            manager.stopCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: .aspectFill, options: Self.options)
+        }
     }
 
     private func requestImage(for asset: PHAsset, targetSize: CGSize) async -> UIImage? {

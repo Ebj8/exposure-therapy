@@ -63,7 +63,10 @@ struct GalleryDeckView: View {
                 .padding(.bottom, Spacing.block)
                 .frame(maxHeight: .infinity)
 
-            if let currentID = model.currentID {
+            if !model.isLoaded {
+                FilmstripPlaceholder()
+                    .padding(.bottom, Spacing.blockTight)
+            } else if let currentID = model.currentID {
                 FilmstripView(
                     slots: model.filmstripSlots(around: currentID, radius: 3),
                     status: model.status(of:),
@@ -91,7 +94,7 @@ struct GalleryDeckView: View {
         .background(.cream)
         .toolbar(.hidden, for: .navigationBar)
         .task {
-            model.load(index: library.index, dailyGoal: dailyGoal, browseWholeMonth: true, context: modelContext)
+            await model.load(index: library.index, dailyGoal: dailyGoal, browseWholeMonth: true, context: modelContext)
             prefetchAround()
         }
         .onChange(of: model.position) {
@@ -210,7 +213,9 @@ struct GalleryDeckView: View {
     private var pager: some View {
         GeometryReader { proxy in
             ZStack {
-                if model.isLoaded && model.visiblePages.isEmpty {
+                if !model.isLoaded {
+                    SkeletonView(cornerRadius: Radius.swipeCard)
+                } else if model.visiblePages.isEmpty {
                     emptyState
                 }
 

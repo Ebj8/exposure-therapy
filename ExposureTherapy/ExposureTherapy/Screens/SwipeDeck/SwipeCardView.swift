@@ -34,9 +34,7 @@ struct SwipeCardView: View {
                         .font(.inter(15, .semibold))
                         .foregroundStyle(.muted)
                 } else {
-                    ProgressView()
-                        .tint(.rose)
-                        .controlSize(.large)
+                    SkeletonView()
                 }
             }
             .clipShape(shape)

@@ -74,6 +74,21 @@ struct FilmstripView: View {
     }
 }
 
+/// The filmstrip's shape while the deck loads.
+struct FilmstripPlaceholder: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<7, id: \.self) { slot in
+                let side: CGFloat = slot == 3 ? 50 : 40
+                SkeletonView(cornerRadius: 8)
+                    .frame(width: side, height: side)
+            }
+        }
+        .frame(height: 50)
+        .accessibilityHidden(true)
+    }
+}
+
 private struct FilmstripThumb: View {
     let assetID: String
     let status: SwipeDeckModel.NeighborStatus
@@ -88,13 +103,15 @@ private struct FilmstripThumb: View {
     }
 
     var body: some View {
-        Color.line
+        Color.clear
             .frame(width: side, height: side)
             .overlay {
                 if let image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else {
+                    SkeletonView()
                 }
             }
             .overlay {

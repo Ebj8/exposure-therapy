@@ -60,7 +60,10 @@ struct SwipeDeckView: View {
                 .padding(.bottom, Spacing.block)
                 .frame(maxHeight: .infinity)
 
-            if let currentID = model.currentID {
+            if !model.isLoaded {
+                FilmstripPlaceholder()
+                    .padding(.bottom, Spacing.blockTight)
+            } else if let currentID = model.currentID {
                 FilmstripView(
                     slots: model.filmstripSlots(around: currentID, radius: 3),
                     status: model.status(of:),
@@ -88,7 +91,7 @@ struct SwipeDeckView: View {
         .background(.cream)
         .toolbar(.hidden, for: .navigationBar)
         .task {
-            model.load(index: library.index, dailyGoal: dailyGoal, context: modelContext)
+            await model.load(index: library.index, dailyGoal: dailyGoal, context: modelContext)
             prefetchUpcoming()
         }
         .onChange(of: model.position) { oldPosition, _ in
@@ -183,7 +186,9 @@ struct SwipeDeckView: View {
     private var cardStack: some View {
         GeometryReader { proxy in
             ZStack {
-                if model.isLoaded && model.currentID == nil {
+                if !model.isLoaded {
+                    SkeletonView(cornerRadius: Radius.swipeCard)
+                } else if model.currentID == nil {
                     emptyState
                 }
 
