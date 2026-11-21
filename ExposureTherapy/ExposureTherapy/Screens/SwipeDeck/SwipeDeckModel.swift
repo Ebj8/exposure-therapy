@@ -191,6 +191,20 @@ final class SwipeDeckModel {
         return Array(ids[start..<(start + width)])
     }
 
+    /// Filmstrip slots: exactly `radius` on each side of the photo, from the
+    /// same month, with nil where the month runs out. Keeping the photo in
+    /// the middle slot means the strip moves with every photo, right up to
+    /// the first and last of the month.
+    func filmstripSlots(around assetID: String, radius: Int) -> [String?] {
+        guard let month = queueMonths[assetID] ?? month(of: assetID),
+              let ids = index.months[month],
+              let position = ids.firstIndex(of: assetID)
+        else {
+            return Array(repeating: nil, count: radius) + [assetID] + Array(repeating: nil, count: radius)
+        }
+        return (position - radius...position + radius).map { ids.indices.contains($0) ? ids[$0] : nil }
+    }
+
     func status(of assetID: String) -> NeighborStatus {
         if assetID == currentID { return .current }
         let decision = history.last(where: { $0.assetID == assetID })?.decision ?? earlierDecisions[assetID]

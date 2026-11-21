@@ -9,8 +9,9 @@
 import SwiftUI
 
 struct FilmstripView: View {
-    /// Neighbors in library order, with the current photo in the middle.
-    let assetIDs: [String]
+    /// Neighbors in library order, with the current photo in the middle
+    /// slot. nil slots (past the start or end of the month) stay empty.
+    let slots: [String?]
     let status: (String) -> SwipeDeckModel.NeighborStatus
     let onSelect: (String) -> Void
 
@@ -19,27 +20,48 @@ struct FilmstripView: View {
     private let thumbSide: CGFloat = 40
     private let currentSide: CGFloat = 50
 
+    /// A slot with a stable identity: the photo's ID, or its side and
+    /// distance for an empty slot.
+    private struct Slot: Identifiable {
+        let id: String
+        let assetID: String?
+    }
+
+    private var identifiedSlots: [Slot] {
+        let middle = slots.count / 2
+        return slots.enumerated().map { offset, assetID in
+            Slot(id: assetID ?? "empty-\(offset - middle)", assetID: assetID)
+        }
+    }
+
     var body: some View {
         HStack(spacing: 6) {
-            ForEach(assetIDs, id: \.self) { assetID in
-                let state = status(assetID)
-                Button {
-                    onSelect(assetID)
-                } label: {
-                    FilmstripThumb(
-                        assetID: assetID,
-                        status: state,
-                        side: state == .current ? currentSide : thumbSide,
-                        targetSize: CGSize(width: currentSide * displayScale, height: currentSide * displayScale)
-                    )
+            ForEach(identifiedSlots) { slot in
+                if let assetID = slot.assetID {
+                    let state = status(assetID)
+                    Button {
+                        onSelect(assetID)
+                    } label: {
+                        FilmstripThumb(
+                            assetID: assetID,
+                            status: state,
+                            side: state == .current ? currentSide : thumbSide,
+                            targetSize: CGSize(width: currentSide * displayScale, height: currentSide * displayScale)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(accessibilityLabel(for: state))
+                    .accessibilityHint("Opens a larger view to compare nearby photos.")
+                } else {
+                    // Past the start or end of the month.
+                    Color.clear
+                        .frame(width: thumbSide, height: thumbSide)
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(accessibilityLabel(for: state))
-                .accessibilityHint("Opens a larger view to compare nearby photos.")
             }
         }
         .frame(height: currentSide)
-        .animation(.easeOut(duration: 0.2), value: assetIDs)
+        .animation(.easeOut(duration: 0.2), value: slots)
     }
 
     private func accessibilityLabel(for state: SwipeDeckModel.NeighborStatus) -> String {
@@ -118,9 +140,11 @@ private struct FilmstripThumb: View {
 }
 
 #Preview {
-    let ids = (28..<35).map { "preview-2019-06-\($0)" }
+    // The second photo of a month: two empty slots, one earlier photo, the
+    // current photo (31) in the middle, then three after.
+    let ids: [String?] = [nil, nil] + (30..<35).map { "preview-2019-06-\($0)" }
     FilmstripView(
-        assetIDs: ids,
+        slots: ids,
         status: { id in
             switch id {
             case "preview-2019-06-31": .current

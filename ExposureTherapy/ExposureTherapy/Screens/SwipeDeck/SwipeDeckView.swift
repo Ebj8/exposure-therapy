@@ -62,7 +62,7 @@ struct SwipeDeckView: View {
 
             if let currentID = model.currentID {
                 FilmstripView(
-                    assetIDs: model.neighbors(of: currentID, radius: 3),
+                    slots: model.filmstripSlots(around: currentID, radius: 3),
                     status: model.status(of:),
                     onSelect: { openPeek(at: $0) }
                 )
