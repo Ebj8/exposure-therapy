@@ -165,7 +165,7 @@ Every gesture also has a button, so the app is usable without swiping. Nothing i
 **Swipe feel**
 
 - A drag locks to sideways (browse) or up (break up) within the first few points.
-- Sideways: the gallery follows the finger and pages at 70 pt or a fast flick, rubber-banding at the first and last photo.
+- Sideways: the gallery follows the finger and pages at 70 pt or a fast flick, rubber-banding at the first photo. On the last photo, the same swipe slides it off like a page turn and opens review instead.
 - Up: the photo follows the finger and a coral "UNMATCH" stamp (top-right, tilted 14°) fades in with the distance. Past 120 pt or a fast flick, the photo flies off the top and the next photo slides into its place; otherwise it springs back.
 - The ✕ button plays the same fly-off.
 - Double-tap shows a rose heart that pops and fades over the photo, then the next photo slides in.
