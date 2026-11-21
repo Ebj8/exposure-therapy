@@ -3,8 +3,9 @@
 //  ExposureTherapy
 //
 //  SPEC.md → Data → Queues: the daily session. The next `dailyGoal`
-//  unreviewed photos, starting in the oldest month that isn't done and
-//  continuing into later months.
+//  unreviewed photos from the oldest month that isn't done. A session stays
+//  within one month, so it ends where the month ends; the next session picks
+//  up in the following month.
 //
 
 import Foundation
@@ -16,24 +17,22 @@ nonisolated struct QueuedPhoto: Sendable {
 }
 
 nonisolated enum DailyPlan {
-    /// The next `limit` photos without a decision, oldest month first, then
-    /// later months, then undated photos. Months before the oldest unfinished
-    /// one have nothing left, so starting from the oldest month is the same
-    /// as starting from the oldest unfinished one.
+    /// Up to `limit` photos without a decision, all from the oldest month
+    /// that has any left (or the undated photos once every month is done).
+    /// The queue never crosses into the next month, so a session ends with
+    /// its month and goes to review.
     static func queue(index: LibraryIndex, excluding decided: Set<String>, limit: Int) -> [QueuedPhoto] {
         guard limit > 0 else { return [] }
-        var queue: [QueuedPhoto] = []
         for key in index.months.keys.sorted() {
-            for assetID in index.months[key] ?? [] where !decided.contains(assetID) {
-                queue.append(QueuedPhoto(assetID: assetID, month: key))
-                if queue.count == limit { return queue }
+            let remaining = (index.months[key] ?? []).filter { !decided.contains($0) }
+            if !remaining.isEmpty {
+                return remaining.prefix(limit).map { QueuedPhoto(assetID: $0, month: key) }
             }
         }
-        for assetID in index.undated where !decided.contains(assetID) {
-            queue.append(QueuedPhoto(assetID: assetID, month: nil))
-            if queue.count == limit { return queue }
-        }
-        return queue
+        return index.undated
+            .filter { !decided.contains($0) }
+            .prefix(limit)
+            .map { QueuedPhoto(assetID: $0, month: nil) }
     }
 
     /// Photos to serve: what's left of today's goal, or a fresh goal's worth
