@@ -51,7 +51,7 @@ struct TodayCardView: View {
             if count > 0 {
                 Button(action: onStart) {
                     HStack(spacing: 10) {
-                        Text(isDoneForToday ? "Keep going anyway" : "Start swiping")
+                        Text(isDoneForToday ? "Keep going" : "Start swiping")
                         Image(systemName: "arrow.right")
                             .font(.system(size: 17, weight: .bold))
                     }
@@ -70,7 +70,7 @@ struct TodayCardView: View {
             return "Every photo has heard back."
         }
         if isDoneForToday {
-            return "You're all caught up today."
+            return "You've hit your goal for today."
         }
         return count == 1 ? "1 photo is waiting to hear back." : "\(count) photos are waiting to hear back."
     }

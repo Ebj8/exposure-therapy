@@ -85,7 +85,7 @@ Four screens make one loop: Home → Swipe deck → Your exes → Session comple
    - Headline "{count} photos are waiting to hear back."
    - "Picking up where you left off in {Month Year}."
    - Rose pill button "Start swiping →" opens the Swipe deck in daily mode.
-   - When today's session is done: headline "You're all caught up today." and button "Keep going anyway".
+   - When today's goal is met: headline "You've hit your goal for today." and button "Keep going".
 5. **Library progress:** "Your whole library" with "{reviewed} of {total} photos" on the right, and a 10 pt progress bar in rose.
 6. **Year grid:**
    - Round chevron buttons on either side of the year title (e.g. "2019"), with "{done} of 12 months done" under it.
@@ -229,7 +229,7 @@ Apple Photos is the source of truth for the photos. SwiftData stores only your d
 
 **Queues**
 
-- Daily session: up to `dailyGoal` unreviewed photos from the oldest month with photos left. A session stays within one month, so it ends with its month; the next session picks up in the following month. Undated photos come last. "Today" counts decisions in daily sessions started today; once the goal is met, "Keep going anyway" serves another batch.
+- Daily session: up to `dailyGoal` unreviewed photos from the oldest month with photos left. A session stays within one month, so it ends with its month; the next session picks up in the following month. Undated photos come last. "Today" counts decisions in daily sessions started today; once the goal is met, "Keep going" serves another batch.
 - Month mode: every unreviewed photo in that month, in date order, browsable alongside the month's already-decided photos.
 - A photo is reviewed once it has a keep, heart or album decision, or has been deleted.
 

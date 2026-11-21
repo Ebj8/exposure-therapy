@@ -36,7 +36,7 @@ nonisolated enum DailyPlan {
     }
 
     /// Photos to serve: what's left of today's goal, or a fresh goal's worth
-    /// once it's met ("Keep going anyway").
+    /// once it's met ("Keep going").
     static func batchSize(goal: Int, doneToday: Int) -> Int {
         let left = goal - doneToday
         return left > 0 ? left : goal
