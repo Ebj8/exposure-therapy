@@ -75,7 +75,7 @@ struct GalleryDeckView: View {
             }
 
             if hintDecisions < 10 {
-                Text("Swipe up to break up · swipe on to keep")
+                Text("Swipe up to break up · swipe to keep")
                     .font(.inter(14, relativeTo: .footnote))
                     .foregroundStyle(.muted)
                     .multilineTextAlignment(.center)
@@ -279,7 +279,7 @@ struct GalleryDeckView: View {
 
     private func statusPill(for decision: Decision) -> some View {
         let isEx = decision == .unmatch
-        return Label(isEx ? "Ex · tap ✓ to take back" : "Kept", systemImage: isEx ? "xmark" : "checkmark")
+        return Label(isEx ? "Ex · tap ✓ to take back" : "Reviewed", systemImage: isEx ? "xmark" : "checkmark")
             .font(.inter(13, .bold))
             .foregroundStyle(.brandWhite)
             .padding(.horizontal, 12)
@@ -288,7 +288,7 @@ struct GalleryDeckView: View {
     }
 
     private func accessibilityStatus(_ decision: Decision) -> String {
-        decision == .unmatch ? "Marked for delete" : "Kept"
+        decision == .unmatch ? "Marked for delete" : "Reviewed, kept"
     }
 
     private var emptyState: some View {
@@ -454,8 +454,13 @@ struct GalleryDeckView: View {
         }
     }
 
-    /// Previous page. Look-only: nothing is decided.
+    /// Previous page. Swiping off an undecided photo in either direction
+    /// keeps it; photos already decided are left as they are.
     private func goBack() {
+        if let currentID = model.currentID, model.effectiveDecision(for: currentID) == nil {
+            model.record(.keep, for: currentID, context: modelContext)
+            noteDecision()
+        }
         lockInput(for: .milliseconds(300))
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
             model.moveTo(page: model.position - 1)
@@ -502,12 +507,13 @@ struct GalleryDeckView: View {
         }
     }
 
-    /// ✓: keeps the photo (or takes an ex back) and moves on.
-    private func keepCurrent() {
-        guard !isAnimating, isCurrentEditable, let assetID = model.currentID else { return }
-        model.record(.keep, for: assetID, context: modelContext)
+    /// ✓ on an ex: takes it back as a keep and stays on it.
+    private func takeBackCurrent() {
+        guard !isAnimating, let assetID = model.currentID else { return }
+        withAnimation(.easeOut(duration: 0.2)) {
+            model.record(.keep, for: assetID, context: modelContext)
+        }
         noteDecision()
-        goForward(keepingCurrent: false)
     }
 
     private func heart() {
@@ -611,39 +617,44 @@ struct GalleryDeckView: View {
 
     // MARK: Buttons
 
+    /// Undo on the left; Album, Discard and Favorite grouped and centered
+    /// on the screen, with Discard large in the middle. On an ex, Discard
+    /// becomes Take back.
     private var buttonRow: some View {
-        let currentDecision = model.currentID.flatMap(model.effectiveDecision(for:))
-        return HStack(spacing: 14) {
-            DeckActionButton(systemImage: "arrow.uturn.backward", accessibilityLabel: "Undo", kind: .plain(.muted), diameter: 48) {
-                undo()
-            }
-            .disabled(!model.canUndoGallery)
+        let isEx = model.currentID.flatMap(model.effectiveDecision(for:)) == .unmatch
+        return ZStack {
+            HStack(spacing: 14) {
+                DeckActionButton(systemImage: "plus.square", accessibilityLabel: "Add to album", kind: .plain(.plum), diameter: 48) {
+                    isPickingAlbum = true
+                }
+                .disabled(!isCurrentEditable)
 
-            DeckActionButton(systemImage: "xmark", accessibilityLabel: "Break up", kind: .unmatch, diameter: 68) {
-                breakUpCurrent()
-            }
-            .disabled(!canBreakUpCurrent)
+                if isEx {
+                    DeckActionButton(systemImage: "checkmark", accessibilityLabel: "Take back", kind: .match, diameter: 68) {
+                        takeBackCurrent()
+                    }
+                } else {
+                    DeckActionButton(systemImage: "xmark", accessibilityLabel: "Break up", kind: .unmatch, diameter: 68) {
+                        breakUpCurrent()
+                    }
+                    .disabled(!canBreakUpCurrent)
+                }
 
-            DeckActionButton(systemImage: "plus.square", accessibilityLabel: "Add to album", kind: .plain(.plum), diameter: 48) {
-                isPickingAlbum = true
+                DeckActionButton(systemImage: "heart", accessibilityLabel: "Heart", kind: .plain(.rose), diameter: 48) {
+                    heart()
+                }
+                .disabled(!isCurrentEditable)
             }
-            .disabled(!isCurrentEditable)
 
-            DeckActionButton(systemImage: "heart", accessibilityLabel: "Heart", kind: .plain(.rose), diameter: 48) {
-                heart()
+            HStack {
+                DeckActionButton(systemImage: "arrow.uturn.backward", accessibilityLabel: "Undo", kind: .plain(.muted), diameter: 48) {
+                    undo()
+                }
+                .disabled(!model.canUndoGallery)
+                Spacer()
             }
-            .disabled(!isCurrentEditable)
-
-            DeckActionButton(
-                systemImage: "checkmark",
-                accessibilityLabel: currentDecision == .unmatch ? "Take back" : "Keep",
-                kind: .match,
-                diameter: 68
-            ) {
-                keepCurrent()
-            }
-            .disabled(!isCurrentEditable)
         }
+        .padding(.horizontal, Spacing.screen)
     }
 
     private var exesChip: some View {
