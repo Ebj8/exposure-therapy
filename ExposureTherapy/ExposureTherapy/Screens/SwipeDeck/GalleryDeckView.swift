@@ -26,7 +26,6 @@ struct GalleryDeckView: View {
     @State private var cardSize: CGSize = .zero
     @State private var isShowingHeart = false
     @State private var isPickingAlbum = false
-    @State private var peek: PeekRequest?
     @State private var decisionFeedback = 0
     @State private var heartFeedback = 0
     /// Set once this visit has moved on to review, so the end-of-month
@@ -66,9 +65,11 @@ struct GalleryDeckView: View {
             if !model.isLoaded {
                 FilmstripPlaceholder()
                     .padding(.bottom, Spacing.blockTight)
-            } else if let currentID = model.currentID {
+            } else if model.currentID != nil {
+                // Only photos you can swipe to: exes leave the filmstrip too,
+                // and wait on Your exes.
                 FilmstripView(
-                    slots: model.filmstripSlots(around: currentID, radius: 3),
+                    slots: model.galleryFilmstripSlots(radius: 3),
                     status: model.status(of:),
                     onSelect: selectFromFilmstrip
                 )
@@ -124,9 +125,6 @@ struct GalleryDeckView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: decisionFeedback)
         .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.7), trigger: heartFeedback)
-        .fullScreenCover(item: $peek) { request in
-            PeekView(request: request, status: model.status(of:))
-        }
         .sheet(isPresented: $isPickingAlbum) {
             AlbumPickerSheet(onPick: addToAlbum, onCreate: createAlbumAndAdd)
         }
@@ -553,16 +551,12 @@ struct GalleryDeckView: View {
         }
     }
 
-    /// Filmstrip tap: jump to the photo if it's in this session, otherwise peek.
+    /// Filmstrip tap: jump to that photo.
     private func selectFromFilmstrip(_ assetID: String) {
-        guard !isAnimating else { return }
-        if let page = model.visiblePages.firstIndex(of: assetID) {
-            lockInput(for: .milliseconds(300))
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                model.moveTo(page: page)
-            }
-        } else if let currentID = model.currentID {
-            peek = PeekRequest(assetIDs: model.neighbors(of: currentID, radius: 10), startID: assetID)
+        guard !isAnimating, let page = model.visiblePages.firstIndex(of: assetID) else { return }
+        lockInput(for: .milliseconds(300))
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            model.moveTo(page: page)
         }
     }
 

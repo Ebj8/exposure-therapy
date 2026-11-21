@@ -233,6 +233,14 @@ final class SwipeDeckModel {
         return (position - radius...position + radius).map { ids.indices.contains($0) ? ids[$0] : nil }
     }
 
+    /// Gallery filmstrip: `radius` slots on each side of the current photo,
+    /// taken from the gallery itself, so exes are left out just as they are
+    /// when browsing. nil where the month runs out.
+    func galleryFilmstripSlots(radius: Int) -> [String?] {
+        let pages = visiblePages
+        return (position - radius...position + radius).map { pages.indices.contains($0) ? pages[$0] : nil }
+    }
+
     func status(of assetID: String) -> NeighborStatus {
         if assetID == currentID { return .current }
         let decision = history.last(where: { $0.assetID == assetID })?.decision ?? earlierDecisions[assetID]
