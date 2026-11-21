@@ -17,6 +17,7 @@ final class PhotoLibrary {
     /// False until the first fetch finishes, so Home can show a spinner.
     private(set) var hasLoaded = false
 
+    @ObservationIgnored private let imageLoader = CardImageLoader()
     @ObservationIgnored private var changeObserver: LibraryChangeObserver?
     @ObservationIgnored private var isReloading = false
     @ObservationIgnored private var needsAnotherReload = false
@@ -39,6 +40,30 @@ final class PhotoLibrary {
     var hasAccess: Bool {
         authorization == .authorized || authorization == .limited
     }
+
+    // MARK: Card images
+
+    /// Loads a swipe-card photo at `targetSize` pixels.
+    func cardPhoto(for assetID: String, targetSize: CGSize) async -> CardPhoto? {
+        if isPreview {
+            return PreviewData.cardPhoto(for: assetID)
+        }
+        return await imageLoader.photo(for: assetID, targetSize: targetSize)
+    }
+
+    /// Prefetches upcoming cards at `targetSize` pixels.
+    func prefetchCards(_ assetIDs: [String], targetSize: CGSize) {
+        guard !isPreview else { return }
+        imageLoader.startCaching(assetIDs, targetSize: targetSize)
+    }
+
+    /// Releases prefetched cards that are no longer needed.
+    func stopPrefetchingCards(_ assetIDs: [String], targetSize: CGSize) {
+        guard !isPreview else { return }
+        imageLoader.stopCaching(assetIDs, targetSize: targetSize)
+    }
+
+    // MARK: Access and loading
 
     /// Shows the system permission prompt, then loads the library if allowed.
     func requestAccess() async {

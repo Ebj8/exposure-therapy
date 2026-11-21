@@ -10,6 +10,7 @@
 import Foundation
 import Photos
 import SwiftData
+import UIKit
 
 enum PreviewData {
     /// Photos per month in the sample library. Missing months have no photos.
@@ -74,6 +75,29 @@ enum PreviewData {
 
     static func library(authorization: PHAuthorizationStatus = .authorized) -> PhotoLibrary {
         PhotoLibrary(previewIndex: index, authorization: authorization)
+    }
+
+    /// A simple generated landscape for a sample asset ID like
+    /// "preview-2019-06-12", dated within that month.
+    static func cardPhoto(for assetID: String) -> CardPhoto {
+        let parts = assetID.split(separator: "-")
+        let number = parts.count == 4 ? Int(parts[3]) ?? 0 : 0
+        var date: Date?
+        if parts.count == 4, let year = Int(parts[1]), let month = Int(parts[2]) {
+            date = Calendar.current.date(from: DateComponents(year: year, month: month, day: number % 28 + 1, hour: 20, minute: 42))
+        }
+
+        let hue = CGFloat(number * 37 % 360) / 360
+        let size = CGSize(width: 600, height: 800)
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            UIColor(hue: hue, saturation: 0.3, brightness: 0.96, alpha: 1).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor(hue: 0.13, saturation: 0.3, brightness: 1, alpha: 1).setFill()
+            context.cgContext.fillEllipse(in: CGRect(x: 360, y: 160, width: 140, height: 140))
+            UIColor(hue: hue, saturation: 0.45, brightness: 0.55, alpha: 1).setFill()
+            context.fill(CGRect(x: 0, y: 520, width: size.width, height: 280))
+        }
+        return CardPhoto(image: image, creationDate: date, fileSize: 2_400_000 + Int64(number) * 37_000)
     }
 
     /// An in-memory store holding the sample decisions and deletions.
