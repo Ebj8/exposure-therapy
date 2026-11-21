@@ -21,6 +21,9 @@ final class SwipeDeckModel {
     private(set) var exesCount = 0
     private(set) var isLoaded = false
 
+    /// This session's decisions, oldest first, for multi-step undo.
+    private(set) var history: [PhotoDecision] = []
+
     /// The open session, created on the first decision if there isn't one.
     @ObservationIgnored private var session: Session?
 
@@ -80,8 +83,12 @@ final class SwipeDeckModel {
         session = openSession(context: context)
         if let session {
             let sessionID = session.id
-            let descriptor = FetchDescriptor<PhotoDecision>(predicate: #Predicate { $0.sessionID == sessionID })
-            exesCount = ((try? context.fetch(descriptor)) ?? []).filter { $0.decision == .unmatch }.count
+            let descriptor = FetchDescriptor<PhotoDecision>(
+                predicate: #Predicate { $0.sessionID == sessionID },
+                sortBy: [SortDescriptor(\.decidedAt)]
+            )
+            history = (try? context.fetch(descriptor)) ?? []
+            exesCount = history.filter { $0.decision == .unmatch }.count
         }
         isLoaded = true
     }
@@ -102,11 +109,26 @@ final class SwipeDeckModel {
     // MARK: Deciding
 
     /// Records a decision for the top card and moves to the next one.
-    func decide(_ decision: Decision, context: ModelContext) {
+    /// `madeFavorite` and `addedToAlbumID` note Photos changes this decision
+    /// made, so undo can reverse them.
+    func decide(
+        _ decision: Decision,
+        madeFavorite: Bool = false,
+        addedToAlbumID: String? = nil,
+        context: ModelContext
+    ) {
         guard let assetID = currentID else { return }
         let session = self.session ?? startSession(context: context)
 
-        context.insert(PhotoDecision(assetID: assetID, decision: decision, sessionID: session.id))
+        let record = PhotoDecision(
+            assetID: assetID,
+            decision: decision,
+            sessionID: session.id,
+            madeFavorite: madeFavorite,
+            addedToAlbumID: addedToAlbumID
+        )
+        context.insert(record)
+        history.append(record)
         if decision == .unmatch {
             exesCount += 1
         } else {
@@ -115,6 +137,39 @@ final class SwipeDeckModel {
         // Save right away so decisions survive the app being quit.
         try? context.save()
         position += 1
+    }
+
+    // MARK: Undo
+
+    var canUndo: Bool {
+        !history.isEmpty
+    }
+
+    /// The decision Undo would reverse.
+    var lastDecision: PhotoDecision? {
+        history.last
+    }
+
+    /// Removes the most recent decision and puts its photo back on top.
+    /// Reversing any Photos change is the caller's job, before calling this.
+    func undo(context: ModelContext) {
+        guard let record = history.popLast() else { return }
+        let assetID = record.assetID
+
+        if record.decision == .unmatch {
+            exesCount = max(exesCount - 1, 0)
+        } else if let session {
+            session.keptCount = max(session.keptCount - 1, 0)
+        }
+        context.delete(record)
+        try? context.save()
+
+        if position > 0 && queue[position - 1] == assetID {
+            position -= 1
+        } else {
+            // Decided before a relaunch, so it isn't in this visit's queue.
+            queue.insert(assetID, at: position)
+        }
     }
 
     private func startSession(context: ModelContext) -> Session {
@@ -140,6 +195,8 @@ final class SwipeDeckModel {
             session.endedAt = .now
             try? context.save()
             self.session = nil
+            // Undo only reaches back through the current session.
+            history = []
         }
         return .sessionComplete
     }

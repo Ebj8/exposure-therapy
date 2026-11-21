@@ -100,6 +100,12 @@ enum PreviewData {
         return CardPhoto(image: image, creationDate: date, fileSize: 2_400_000 + Int64(number) * 37_000)
     }
 
+    static let albums = [
+        PhotoAlbum(id: "preview-album-3", title: "Beach days", count: 48),
+        PhotoAlbum(id: "preview-album-2", title: "Family", count: 212),
+        PhotoAlbum(id: "preview-album-1", title: "Recipes", count: 17),
+    ]
+
     /// An in-memory store holding the sample decisions and deletions.
     static let container: ModelContainer = {
         do {

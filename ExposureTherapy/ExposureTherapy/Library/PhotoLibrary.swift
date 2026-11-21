@@ -63,6 +63,36 @@ final class PhotoLibrary {
         imageLoader.stopCaching(assetIDs, targetSize: targetSize)
     }
 
+    // MARK: Changes in Apple Photos
+
+    /// Returns true if this call changed the Favorite flag.
+    func setFavorite(_ isFavorite: Bool, assetID: String) async -> Bool {
+        if isPreview { return true }
+        return await PhotoChanges.setFavorite(isFavorite, assetID: assetID)
+    }
+
+    /// Returns true if this call added the photo to the album.
+    func addToAlbum(assetID: String, albumID: String) async -> Bool {
+        if isPreview { return true }
+        return await PhotoChanges.addToAlbum(assetID: assetID, albumID: albumID)
+    }
+
+    func removeFromAlbum(assetID: String, albumID: String) async {
+        guard !isPreview else { return }
+        await PhotoChanges.removeFromAlbum(assetID: assetID, albumID: albumID)
+    }
+
+    /// Creates an album and returns its ID.
+    func createAlbum(named title: String) async -> String? {
+        if isPreview { return "preview-album-new" }
+        return await PhotoChanges.createAlbum(named: title)
+    }
+
+    func albums() async -> [PhotoAlbum] {
+        if isPreview { return PreviewData.albums }
+        return await PhotoChanges.albums()
+    }
+
     // MARK: Access and loading
 
     /// Shows the system permission prompt, then loads the library if allowed.
