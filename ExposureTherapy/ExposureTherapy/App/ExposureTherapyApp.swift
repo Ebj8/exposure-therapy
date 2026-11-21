@@ -58,7 +58,7 @@ struct RootView: View {
                     switch route {
                     case .swipeDeck(let mode): SwipeDeckView(mode: mode)
                     case .yourExes(let sessionID): YourExesView(sessionID: sessionID)
-                    case .sessionComplete: SessionCompleteView()
+                    case .sessionComplete(let sessionID): SessionCompleteView(sessionID: sessionID)
                     case .settings: SettingsView()
                     }
                 }

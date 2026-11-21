@@ -25,7 +25,7 @@ struct SwipeDeckView: View {
     @State private var insertionOffset: CGFloat = 0
     @State private var isShowingHeart = false
     @State private var isPickingAlbum = false
-    @AppStorage("lastAlbumID") private var lastAlbumID = ""
+    @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
 
     /// Drag distance that commits a decision, and that fully shows a stamp.
     private let commitDistance: CGFloat = 120

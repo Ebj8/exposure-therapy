@@ -106,6 +106,9 @@ enum PreviewData {
         PhotoAlbum(id: "preview-album-1", title: "Recipes", count: 17),
     ]
 
+    /// A May 2019 session that just ended with a Breakup.
+    static let completedSessionID = UUID()
+
     /// An open June 2019 session with 14 exes waiting for a Breakup.
     static let exesSessionID = UUID()
 
@@ -121,6 +124,17 @@ enum PreviewData {
             for id in reviewedIDs {
                 context.insert(PhotoDecision(assetID: id, decision: .keep, sessionID: sessionID))
             }
+            // Finished sessions today and on the 6 days before: a 7-day streak.
+            context.insert(Session(
+                id: completedSessionID, mode: .month, monthKey: MonthKey(year: 2019, month: 5).rawValue,
+                startedAt: .now.addingTimeInterval(-600), endedAt: .now,
+                keptCount: 163, deletedCount: 47, bytesFreed: 212_000_000
+            ))
+            for daysAgo in 1...6 {
+                let day = Calendar.current.date(byAdding: .day, value: -daysAgo, to: .now) ?? .now
+                context.insert(Session(mode: .month, monthKey: "2018-01", startedAt: day, endedAt: day, keptCount: 10))
+            }
+
             let june = MonthKey(year: 2019, month: 6)
             context.insert(Session(id: exesSessionID, mode: .month, monthKey: june.rawValue))
             for number in 31..<45 {

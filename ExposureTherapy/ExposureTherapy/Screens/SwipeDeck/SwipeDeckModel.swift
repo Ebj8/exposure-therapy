@@ -194,6 +194,7 @@ final class SwipeDeckModel {
         if exesCount > 0, let session {
             return .yourExes(sessionID: session.id)
         }
+        let endedID = session?.id
         if let session {
             session.endedAt = .now
             try? context.save()
@@ -201,6 +202,6 @@ final class SwipeDeckModel {
             // Undo only reaches back through the current session.
             history = []
         }
-        return .sessionComplete
+        return .sessionComplete(sessionID: endedID)
     }
 }

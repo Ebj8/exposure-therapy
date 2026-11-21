@@ -20,7 +20,8 @@ enum AppRoute: Hashable {
     case swipeDeck(DeckMode)
     /// The exes of one session.
     case yourExes(sessionID: UUID)
-    case sessionComplete
+    /// nil when Done was tapped before any decision.
+    case sessionComplete(sessionID: UUID?)
     case settings
 }
 

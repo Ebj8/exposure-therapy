@@ -46,6 +46,8 @@ nonisolated struct LibraryProgress: Sendable {
     let resumeMonth: MonthKey?
 
     private let months: [MonthKey: MonthProgress]
+    /// Every month with photos, oldest first.
+    private let sortedKeys: [MonthKey]
 
     /// - Parameters:
     ///   - index: The current library.
@@ -90,9 +92,24 @@ nonisolated struct LibraryProgress: Sendable {
         }
         resumeMonth = sortedKeys.first { months[$0]?.status != .done }
 
+        self.sortedKeys = sortedKeys
         self.months = months
         self.totalPhotos = total
         self.reviewedPhotos = reviewed
+    }
+
+    /// Reviewed ÷ (library now + deleted), rounded down.
+    var percentReviewed: Int {
+        totalPhotos == 0 ? 0 : reviewedPhotos * 100 / totalPhotos
+    }
+
+    /// The oldest unfinished month after `key`, or the oldest unfinished
+    /// month overall when there's none after it.
+    func nextUnfinishedMonth(after key: MonthKey?) -> MonthKey? {
+        if let key, let next = sortedKeys.first(where: { $0 > key && months[$0]?.status != .done }) {
+            return next
+        }
+        return resumeMonth
     }
 
     /// Share of the library reviewed, 0 to 1.

@@ -16,7 +16,7 @@ struct AlbumPickerSheet: View {
 
     @Environment(PhotoLibrary.self) private var library
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("lastAlbumID") private var lastAlbumID = ""
+    @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
 
     @State private var albums: [PhotoAlbum]?
     @State private var isNamingAlbum = false

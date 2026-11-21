@@ -176,7 +176,7 @@ struct YourExesView: View {
     private func breakup() async {
         switch await model.breakup(library: library, context: modelContext) {
         case .deleted:
-            router.push(.sessionComplete)
+            router.push(.sessionComplete(sessionID: model.sessionID))
         case .cancelled:
             // Stay here with the exes still marked.
             break

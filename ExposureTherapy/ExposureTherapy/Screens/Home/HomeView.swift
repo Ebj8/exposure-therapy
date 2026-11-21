@@ -2,8 +2,7 @@
 //  HomeView.swift
 //  ExposureTherapy
 //
-//  SPEC.md → Screens → 1. Home. Milestone 2 adds library progress and the
-//  year grid; stat tiles and today's session come in later milestones.
+//  SPEC.md → Screens → 1. Home. Today's session card comes in Milestone 7.
 //
 
 import Photos
@@ -15,15 +14,13 @@ struct HomeView: View {
     @Environment(PhotoLibrary.self) private var library
     @Query private var decisions: [PhotoDecision]
     @Query private var deletedPhotos: [DeletedPhoto]
+    @Query private var sessions: [Session]
     /// The year picked with the chevrons; nil means the default year.
     @State private var selectedYear: Int?
 
     var body: some View {
-        let progress = LibraryProgress(
-            index: library.index,
-            reviewedIDs: Set(decisions.lazy.filter(\.countsAsReviewed).map(\.assetID)),
-            deletedMonthKeys: deletedPhotos.map(\.monthKey)
-        )
+        let snapshot = LibrarySnapshot(index: library.index, decisions: decisions, deletedPhotos: deletedPhotos, sessions: sessions)
+        let progress = snapshot.progress
 
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.blockLoose) {
@@ -35,6 +32,7 @@ struct HomeView: View {
                 }
 
                 if library.hasLoaded {
+                    statTiles(snapshot)
                     LibraryProgressView(reviewed: progress.reviewedPhotos, total: progress.totalPhotos)
                         .padding(.top, 8)
                     yearGrid(progress)
@@ -90,6 +88,14 @@ struct HomeView: View {
         .accessibilityAddTraits(.isHeader)
     }
 
+    private func statTiles(_ snapshot: LibrarySnapshot) -> some View {
+        HStack(spacing: 10) {
+            StatTileView(systemImage: "flame", iconColor: .rose, value: snapshot.streak.formatted(), label: "day streak")
+            StatTileView(systemImage: "trash", iconColor: .brandTeal, value: Stats.storageText(bytes: snapshot.bytesFreed), label: "let go")
+            StatTileView(systemImage: "photo", iconColor: .plum, value: "\(snapshot.progress.percentReviewed)%", label: "reviewed")
+        }
+    }
+
     @ViewBuilder
     private func yearGrid(_ progress: LibraryProgress) -> some View {
         if let range = progress.yearRange, let defaultYear = progress.defaultYear {
@@ -113,7 +119,7 @@ struct HomeView: View {
             Text("DEBUG · SCREENS")
                 .font(.inter(12, .bold))
                 .foregroundStyle(.muted)
-            Button("Session complete") { router.push(.sessionComplete) }
+            Button("Session complete") { router.push(.sessionComplete(sessionID: nil)) }
         }
         .font(.inter(16, .semibold))
         .tint(.rose)
