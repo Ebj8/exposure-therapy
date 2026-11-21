@@ -315,6 +315,9 @@ final class SwipeDeckModel {
         /// Photos changes this action made, for undo to reverse.
         let madeFavorite: Bool
         let addedToAlbumID: String?
+        /// Set when this action moved an earlier session's decision into this
+        /// session; undo hands it back.
+        var previousSessionID: UUID? = nil
     }
 
     /// This session's decision for a photo, if any.
@@ -349,15 +352,10 @@ final class SwipeDeckModel {
         position = min(max(page, 0), max(count - 1, 0))
     }
 
-    /// A decision from an earlier session, shown but not changeable here.
-    func earlierDecision(for assetID: String) -> Decision? {
-        earlierDecisions[assetID]
-    }
-
-    /// Photos decided in an earlier session are view-only: changing them
-    /// would throw off that session's counts.
-    func isEditable(_ assetID: String) -> Bool {
-        decision(for: assetID) != nil || earlierDecisions[assetID] == nil
+    /// This session's decision, or else an earlier session's: what the
+    /// photo's status is right now.
+    func effectiveDecision(for assetID: String) -> Decision? {
+        decision(for: assetID) ?? earlierDecisions[assetID]
     }
 
     /// Records (or changes) the decision for a photo without moving pages.
@@ -368,9 +366,37 @@ final class SwipeDeckModel {
         addedToAlbumID: String? = nil,
         context: ModelContext
     ) {
-        let session = self.session ?? startSession(context: context)
-        if let existing = history.last(where: { $0.assetID == assetID }) {
-            guard existing.decision != decision else { return }
+        // The session starts only once something actually changes, so just
+        // browsing a month leaves no empty session behind.
+        if history.last(where: { $0.assetID == assetID }) == nil,
+           let earlier = earlierDecisions[assetID] {
+            // Decided in an earlier session: changing it moves the decision
+            // into this one. That session's summary keeps what happened then.
+            guard earlier != decision, let existing = earlierRecord(for: assetID, context: context) else { return }
+            let session = self.session ?? startSession(context: context)
+            var action = GalleryAction(
+                record: existing,
+                previous: existing.decision,
+                previousMadeFavorite: existing.madeFavorite,
+                previousAlbumID: existing.addedToAlbumID,
+                madeFavorite: madeFavorite,
+                addedToAlbumID: addedToAlbumID
+            )
+            action.previousSessionID = existing.sessionID
+            galleryActions.append(action)
+
+            existing.sessionID = session.id
+            existing.decision = decision
+            existing.decidedAt = .now
+            if madeFavorite { existing.madeFavorite = true }
+            if let addedToAlbumID { existing.addedToAlbumID = addedToAlbumID }
+            earlierDecisions[assetID] = nil
+            history.append(existing)
+            if decision != .unmatch {
+                session.keptCount += 1
+            }
+        } else if let existing = history.last(where: { $0.assetID == assetID }) {
+            guard existing.decision != decision, let session else { return }
             galleryActions.append(GalleryAction(
                 record: existing,
                 previous: existing.decision,
@@ -384,6 +410,7 @@ final class SwipeDeckModel {
             if madeFavorite { existing.madeFavorite = true }
             if let addedToAlbumID { existing.addedToAlbumID = addedToAlbumID }
         } else {
+            let session = self.session ?? startSession(context: context)
             let record = PhotoDecision(
                 assetID: assetID,
                 decision: decision,
@@ -412,7 +439,18 @@ final class SwipeDeckModel {
         let record = action.record
         let assetID = record.assetID
 
-        if let previous = action.previous {
+        if let previousSessionID = action.previousSessionID, let previous = action.previous {
+            // Hand the decision back to the earlier session it came from.
+            if record.decision != .unmatch, let session {
+                session.keptCount = max(session.keptCount - 1, 0)
+            }
+            record.sessionID = previousSessionID
+            record.decision = previous
+            record.madeFavorite = action.previousMadeFavorite
+            record.addedToAlbumID = action.previousAlbumID
+            history.removeAll { $0 === record }
+            earlierDecisions[assetID] = previous
+        } else if let previous = action.previous {
             if let session { adjustKeptCount(session, from: record.decision, to: previous) }
             record.decision = previous
             record.madeFavorite = action.previousMadeFavorite
@@ -431,6 +469,12 @@ final class SwipeDeckModel {
             queue.insert(assetID, at: min(position, queue.count))
         }
         return (assetID, action.madeFavorite, action.addedToAlbumID)
+    }
+
+    /// The stored decision from an earlier session (asset IDs are unique).
+    private func earlierRecord(for assetID: String, context: ModelContext) -> PhotoDecision? {
+        let descriptor = FetchDescriptor<PhotoDecision>(predicate: #Predicate { $0.assetID == assetID })
+        return try? context.fetch(descriptor).first
     }
 
     private func adjustKeptCount(_ session: Session, from old: Decision, to new: Decision) {

@@ -241,7 +241,7 @@ struct GalleryDeckView: View {
 
     private func pageView(_ assetID: String, offset: Int, size: CGSize) -> some View {
         let isCurrent = offset == 0
-        let decision = model.decision(for: assetID)
+        let decision = model.effectiveDecision(for: assetID)
         let horizontal = dragAxis == .horizontal ? dragOffset.width : 0
         // Upward drags follow the finger; downward ones barely move.
         let vertical = isCurrent && dragAxis == .vertical
@@ -264,22 +264,13 @@ struct GalleryDeckView: View {
             if let decision {
                 statusPill(for: decision)
                     .padding(.top, 16)
-            } else if model.earlierDecision(for: assetID) != nil {
-                Label("Reviewed before", systemImage: "lock.fill")
-                    .font(.inter(13, .bold))
-                    .foregroundStyle(.brandWhite)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.plum.opacity(0.85), in: Capsule())
-                    .padding(.top, 16)
             }
         }
         .frame(width: size.width, height: size.height)
         .offset(x: CGFloat(offset) * (size.width + pageGap) + horizontal, y: vertical)
         .opacity(assetID == hiddenID ? 0 : 1)
         .accessibilityHidden(!isCurrent)
-        .accessibilityValue(decision.map(accessibilityStatus)
-            ?? (model.earlierDecision(for: assetID) != nil ? "Reviewed in an earlier session" : "Not decided"))
+        .accessibilityValue(decision.map(accessibilityStatus) ?? "Not decided")
     }
 
     private func statusPill(for decision: Decision) -> some View {
@@ -315,14 +306,14 @@ struct GalleryDeckView: View {
 
     // MARK: Gestures
 
-    /// The current photo can still be decided or changed here.
+    /// There's a photo on screen to decide or change.
     private var isCurrentEditable: Bool {
-        model.currentID.map(model.isEditable) ?? false
+        model.currentID != nil
     }
 
     private var canBreakUpCurrent: Bool {
         guard let currentID = model.currentID else { return false }
-        return model.isEditable(currentID) && model.decision(for: currentID) != .unmatch
+        return model.effectiveDecision(for: currentID) != .unmatch
     }
 
     private var isOnLastPage: Bool {
@@ -343,7 +334,7 @@ struct GalleryDeckView: View {
                     let atEnd = isOnLastPage && translation.width < 0
                     if atStart || atEnd { translation.width *= 0.3 }
                 } else if !canBreakUpCurrent {
-                    // Already an ex, or reviewed before: resist instead.
+                    // Already an ex: resist instead of breaking up again.
                     translation.height *= 0.2
                 }
                 dragOffset = translation
@@ -401,7 +392,7 @@ struct GalleryDeckView: View {
             springBack()
             return
         }
-        if keepingCurrent && model.isEditable(currentID) && model.decision(for: currentID) == nil {
+        if keepingCurrent && model.effectiveDecision(for: currentID) == nil {
             model.record(.keep, for: currentID, context: modelContext)
             noteDecision()
         }
@@ -417,18 +408,25 @@ struct GalleryDeckView: View {
     /// then go to review (Your exes, or Session complete with no exes).
     private func finishFromLastPhoto() {
         springBack()
-        if let currentID = model.currentID, model.isEditable(currentID), model.decision(for: currentID) == nil {
+        if let currentID = model.currentID, model.effectiveDecision(for: currentID) == nil {
             model.record(.keep, for: currentID, context: modelContext)
             noteDecision()
         }
         finishSession()
     }
 
-    /// Goes to review once per visit, whichever way the session ends.
+    /// Goes to review once per visit, whichever way the session ends. If you
+    /// only browsed (re-reviewing a month without changing anything), there's
+    /// nothing to review, so it goes back instead.
     private func finishSession() {
         guard !didFinish else { return }
         didFinish = true
-        router.push(model.finish(context: modelContext))
+        // No decisions this visit (or all undone): just browsing.
+        if model.history.isEmpty {
+            router.pop()
+        } else {
+            router.push(model.finish(context: modelContext))
+        }
     }
 
     /// Previous page. Look-only: nothing is decided.
@@ -586,7 +584,7 @@ struct GalleryDeckView: View {
     // MARK: Buttons
 
     private var buttonRow: some View {
-        let currentDecision = model.currentID.flatMap(model.decision(for:))
+        let currentDecision = model.currentID.flatMap(model.effectiveDecision(for:))
         return HStack(spacing: 14) {
             DeckActionButton(systemImage: "arrow.uturn.backward", accessibilityLabel: "Undo", kind: .plain(.muted), diameter: 48) {
                 undo()
