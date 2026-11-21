@@ -2,11 +2,10 @@
 //  GalleryDeckView.swift
 //  ExposureTherapy
 //
-//  Gallery-style deck (trial): swipe sideways to browse the month like the
-//  Photos app; swiping either way off a photo you haven't decided keeps it.
-//  Swipe up to break up: the photo leaves the gallery (and the filmstrip)
-//  and waits on Your exes. Same session, exes and Breakup flow as the card
-//  deck.
+//  SPEC.md → Screens → 2. Swipe deck. Swipe sideways to browse the month
+//  like the Photos app; swiping either way off a photo you haven't decided
+//  keeps it. Swipe up to break up: the photo leaves the gallery (and the
+//  filmstrip) and waits on Your exes.
 //
 
 import SwiftUI
@@ -70,7 +69,7 @@ struct GalleryDeckView: View {
                 // Only photos you can swipe to: exes leave the filmstrip too,
                 // and wait on Your exes.
                 FilmstripView(
-                    slots: model.galleryFilmstripSlots(radius: 3),
+                    slots: model.filmstripSlots(radius: 3),
                     status: model.status(of:),
                     onSelect: selectFromFilmstrip
                 )
@@ -96,7 +95,7 @@ struct GalleryDeckView: View {
         .background(.cream)
         .toolbar(.hidden, for: .navigationBar)
         .task {
-            await model.load(index: library.index, dailyGoal: dailyGoal, browseWholeMonth: true, context: modelContext)
+            await model.load(index: library.index, dailyGoal: dailyGoal, context: modelContext)
             prefetchAround()
         }
         .onChange(of: model.position) {
@@ -188,10 +187,10 @@ struct GalleryDeckView: View {
                 GeometryReader { proxy in
                     Capsule()
                         .fill(.rose)
-                        .frame(width: proxy.size.width * model.galleryProgress)
+                        .frame(width: proxy.size.width * model.progress)
                 }
             }
-            .animation(.easeOut(duration: 0.25), value: model.galleryProgress)
+            .animation(.easeOut(duration: 0.25), value: model.progress)
             .accessibilityHidden(true)
     }
 
@@ -522,7 +521,7 @@ struct GalleryDeckView: View {
     /// Steps back through decisions and changes of mind, reversing any
     /// Photos change, and shows the photo it affected.
     private func undo() {
-        guard !isAnimating, let undone = model.undoGallery(context: modelContext) else { return }
+        guard !isAnimating, let undone = model.undo(context: modelContext) else { return }
         lockInput(for: .milliseconds(350))
         Task {
             if undone.madeFavorite {
@@ -593,7 +592,7 @@ struct GalleryDeckView: View {
                 DeckActionButton(systemImage: "arrow.uturn.backward", accessibilityLabel: "Undo", kind: .plain(.muted), diameter: 48) {
                     undo()
                 }
-                .disabled(!model.canUndoGallery)
+                .disabled(!model.canUndo)
                 Spacer()
             }
         }

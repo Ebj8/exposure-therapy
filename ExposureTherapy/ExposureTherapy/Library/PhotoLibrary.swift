@@ -68,12 +68,6 @@ final class PhotoLibrary {
         imageLoader.startCaching(assetIDs, targetSize: targetSize, contentMode: .aspectFill)
     }
 
-    /// Releases prefetched cards that are no longer needed.
-    func stopPrefetchingCards(_ assetIDs: [String], targetSize: CGSize) {
-        guard !isPreview else { return }
-        imageLoader.stopCaching(assetIDs, targetSize: targetSize, contentMode: .aspectFit)
-    }
-
     /// Loads a grid thumbnail at `targetSize` pixels.
     func thumbnail(for assetID: String, targetSize: CGSize) async -> UIImage? {
         if isPreview {

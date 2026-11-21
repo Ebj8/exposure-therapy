@@ -26,13 +26,12 @@ final class SwipeDeckModel {
     /// This session's decisions, oldest first, for multi-step undo.
     private(set) var history: [PhotoDecision] = []
 
-    /// Gallery style: every photo of the month, decided or not.
+    /// Every photo of the month, decided or not.
     private(set) var pages: [String] = []
-    private(set) var browsesWholeMonth = false
 
-    /// Gallery style: every decision or change of mind, newest last, so
+    /// Every decision or change of mind, newest last, so
     /// undo can step back through them (including keep → ex changes).
-    private(set) var galleryActions: [GalleryAction] = []
+    private(set) var actions: [Action] = []
 
     /// The open session, created on the first decision if there isn't one.
     @ObservationIgnored private var session: Session?
@@ -80,11 +79,11 @@ final class SwipeDeckModel {
     }
 
     var currentID: String? {
-        let list = browsesWholeMonth ? visiblePages : queue
-        return list.indices.contains(position) ? list[position] : nil
+        let pages = visiblePages
+        return pages.indices.contains(position) ? pages[position] : nil
     }
 
-    /// Gallery style: the month's photos minus exes. Breaking up removes a
+    /// The month's photos minus exes. Breaking up removes a
     /// photo from the gallery; undo or a rescue on Your exes brings it back
     /// in its place. `position` indexes this list when browsing.
     var visiblePages: [String] {
@@ -96,36 +95,12 @@ final class SwipeDeckModel {
         return pages.filter { !exIDs.contains($0) }
     }
 
-    var nextID: String? {
-        queue.indices.contains(position + 1) ? queue[position + 1] : nil
-    }
-
-    /// The next 3 cards after the top one, for prefetching.
-    var upcomingIDs: [String] {
-        Array(queue.dropFirst(position + 1).prefix(3))
-    }
-
-    var isOutOfCards: Bool {
-        isLoaded && position >= queue.count
-    }
-
-    /// 1-based position of the top card, for "{position} of {total}".
-    var displayPosition: Int {
-        min(position + 1, queue.count)
-    }
-
-    /// Share of the session decided, 0 to 1.
-    var progress: Double {
-        let total = dailyOffset + queue.count
-        return total == 0 ? 0 : Double(dailyOffset + position) / Double(total)
-    }
-
     // MARK: Loading
 
-    /// - Parameter browseWholeMonth: Gallery style. Pages are every photo of
-    ///   the month (so you can swipe back to ones already decided), opening on
-    ///   the first one still to decide. `queue` stays the photos to decide.
-    func load(index: LibraryIndex, dailyGoal: Int, browseWholeMonth: Bool = false, context: ModelContext) async {
+    /// Pages are every photo of the month (so you can swipe back to ones
+    /// already decided), opening on the first one still to decide. `queue`
+    /// is the photos to decide.
+    func load(index: LibraryIndex, dailyGoal: Int, context: ModelContext) async {
         guard !isLoaded, !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
@@ -149,8 +124,7 @@ final class SwipeDeckModel {
         // Walking the library to build the queue runs off the main thread.
         let mode = self.mode
         let plan = await Task.detached(priority: .userInitiated) {
-            DeckPlan(mode: mode, index: index, decided: decided, dailyGoal: dailyGoal,
-                     doneToday: doneToday, browseWholeMonth: browseWholeMonth)
+            DeckPlan(mode: mode, index: index, decided: decided, dailyGoal: dailyGoal, doneToday: doneToday)
         }.value
         queue = plan.queue
         queueMonths = plan.queueMonths
@@ -165,8 +139,8 @@ final class SwipeDeckModel {
             )
             history = (try? context.fetch(descriptor)) ?? []
         }
-        galleryActions = history.map {
-            GalleryAction(record: $0, previous: nil, previousMadeFavorite: false, previousAlbumID: nil,
+        actions = history.map {
+            Action(record: $0, previous: nil, previousMadeFavorite: false, previousAlbumID: nil,
                           madeFavorite: $0.madeFavorite, addedToAlbumID: $0.addedToAlbumID)
         }
         let sessionIDs = Set(history.map(\.assetID))
@@ -174,10 +148,7 @@ final class SwipeDeckModel {
             earlierDecisions[record.assetID] = record.decision
         }
 
-        if browseWholeMonth {
-            browsesWholeMonth = true
-            position = queue.first.flatMap { visiblePages.firstIndex(of: $0) } ?? 0
-        }
+        position = queue.first.flatMap { visiblePages.firstIndex(of: $0) } ?? 0
         isLoaded = true
     }
 
@@ -194,9 +165,9 @@ final class SwipeDeckModel {
         }
     }
 
-    // MARK: Neighbors (filmstrip and peek)
+    // MARK: Filmstrip
 
-    /// Where a photo stands, for marking it in the filmstrip and peek.
+    /// Where a photo stands, for marking it in the filmstrip.
     enum NeighborStatus {
         case current
         case kept
@@ -204,39 +175,10 @@ final class SwipeDeckModel {
         case undecided
     }
 
-    /// The photo plus nearby photos from the same month, in library order:
-    /// a window of up to `radius * 2 + 1` photos, centered on the photo when
-    /// possible. Near the start or end of a month the window shifts to fill
-    /// from the other side instead of reaching into the next month.
-    func neighbors(of assetID: String, radius: Int) -> [String] {
-        guard let month = queueMonths[assetID] ?? month(of: assetID),
-              let ids = index.months[month],
-              let position = ids.firstIndex(of: assetID)
-        else { return [assetID] }
-
-        let width = min(radius * 2 + 1, ids.count)
-        let start = min(max(position - radius, 0), ids.count - width)
-        return Array(ids[start..<(start + width)])
-    }
-
-    /// Filmstrip slots: exactly `radius` on each side of the photo, from the
-    /// same month, with nil where the month runs out. Keeping the photo in
-    /// the middle slot means the strip moves with every photo, right up to
-    /// the first and last of the month.
-    func filmstripSlots(around assetID: String, radius: Int) -> [String?] {
-        guard let month = queueMonths[assetID] ?? month(of: assetID),
-              let ids = index.months[month],
-              let position = ids.firstIndex(of: assetID)
-        else {
-            return Array(repeating: nil, count: radius) + [assetID] + Array(repeating: nil, count: radius)
-        }
-        return (position - radius...position + radius).map { ids.indices.contains($0) ? ids[$0] : nil }
-    }
-
     /// Gallery filmstrip: `radius` slots on each side of the current photo,
     /// taken from the gallery itself, so exes are left out just as they are
     /// when browsing. nil where the month runs out.
-    func galleryFilmstripSlots(radius: Int) -> [String?] {
+    func filmstripSlots(radius: Int) -> [String?] {
         let pages = visiblePages
         return (position - radius...position + radius).map { pages.indices.contains($0) ? pages[$0] : nil }
     }
@@ -251,72 +193,11 @@ final class SwipeDeckModel {
         }
     }
 
-    // MARK: Deciding
+    // MARK: Decisions
 
-    /// Records a decision for the top card and moves to the next one.
-    /// `madeFavorite` and `addedToAlbumID` note Photos changes this decision
-    /// made, so undo can reverse them.
-    func decide(
-        _ decision: Decision,
-        madeFavorite: Bool = false,
-        addedToAlbumID: String? = nil,
-        context: ModelContext
-    ) {
-        guard let assetID = currentID else { return }
-        let session = self.session ?? startSession(context: context)
-
-        let record = PhotoDecision(
-            assetID: assetID,
-            decision: decision,
-            sessionID: session.id,
-            madeFavorite: madeFavorite,
-            addedToAlbumID: addedToAlbumID
-        )
-        context.insert(record)
-        history.append(record)
-        if decision != .unmatch {
-            session.keptCount += 1
-        }
-        // Save right away so decisions survive the app being quit.
-        try? context.save()
-        position += 1
-    }
-
-    // MARK: Undo
-
-    var canUndo: Bool {
-        !history.isEmpty
-    }
-
-    /// The decision Undo would reverse.
-    var lastDecision: PhotoDecision? {
-        history.last
-    }
-
-    /// Removes the most recent decision and puts its photo back on top.
-    /// Reversing any Photos change is the caller's job, before calling this.
-    func undo(context: ModelContext) {
-        guard let record = history.popLast() else { return }
-        let assetID = record.assetID
-
-        if record.decision != .unmatch, let session {
-            session.keptCount = max(session.keptCount - 1, 0)
-        }
-        context.delete(record)
-        try? context.save()
-
-        if position > 0 && queue[position - 1] == assetID {
-            position -= 1
-        } else {
-            // Decided before a relaunch, so it isn't in this visit's queue.
-            queue.insert(assetID, at: position)
-        }
-    }
-
-    // MARK: Gallery style
-
-    /// One gallery decision, with what it replaced so undo can restore it.
-    struct GalleryAction {
+    /// One decision or change of mind, with what it replaced so undo can
+    /// restore it.
+    struct Action {
         let record: PhotoDecision
         /// nil when this action created the record.
         let previous: Decision?
@@ -347,19 +228,18 @@ final class SwipeDeckModel {
     }
 
     /// Share of the session decided, 0 to 1.
-    var galleryProgress: Double {
+    var progress: Double {
         let total = dailyOffset + queue.count
         return total == 0 ? 0 : Double(dailyOffset + decidedInQueue) / Double(total)
     }
 
-    var canUndoGallery: Bool {
-        !galleryActions.isEmpty
+    var canUndo: Bool {
+        !actions.isEmpty
     }
 
     /// Shows a page without deciding anything.
     func moveTo(page: Int) {
-        let count = browsesWholeMonth ? visiblePages.count : queue.count
-        position = min(max(page, 0), max(count - 1, 0))
+        position = min(max(page, 0), max(visiblePages.count - 1, 0))
     }
 
     /// This session's decision, or else an earlier session's: what the
@@ -384,7 +264,7 @@ final class SwipeDeckModel {
             // into this one. That session's summary keeps what happened then.
             guard earlier != decision, let existing = earlierRecord(for: assetID, context: context) else { return }
             let session = self.session ?? startSession(context: context)
-            var action = GalleryAction(
+            var action = Action(
                 record: existing,
                 previous: existing.decision,
                 previousMadeFavorite: existing.madeFavorite,
@@ -393,7 +273,7 @@ final class SwipeDeckModel {
                 addedToAlbumID: addedToAlbumID
             )
             action.previousSessionID = existing.sessionID
-            galleryActions.append(action)
+            actions.append(action)
 
             existing.sessionID = session.id
             existing.decision = decision
@@ -407,7 +287,7 @@ final class SwipeDeckModel {
             }
         } else if let existing = history.last(where: { $0.assetID == assetID }) {
             guard existing.decision != decision, let session else { return }
-            galleryActions.append(GalleryAction(
+            actions.append(Action(
                 record: existing,
                 previous: existing.decision,
                 previousMadeFavorite: existing.madeFavorite,
@@ -430,7 +310,7 @@ final class SwipeDeckModel {
             )
             context.insert(record)
             history.append(record)
-            galleryActions.append(GalleryAction(
+            actions.append(Action(
                 record: record, previous: nil, previousMadeFavorite: false, previousAlbumID: nil,
                 madeFavorite: madeFavorite, addedToAlbumID: addedToAlbumID
             ))
@@ -444,8 +324,8 @@ final class SwipeDeckModel {
 
     /// Reverses the last gallery action. Returns the photo and any Photos
     /// changes that action made, for the caller to reverse.
-    func undoGallery(context: ModelContext) -> (assetID: String, madeFavorite: Bool, addedToAlbumID: String?)? {
-        guard let action = galleryActions.popLast() else { return nil }
+    func undo(context: ModelContext) -> (assetID: String, madeFavorite: Bool, addedToAlbumID: String?)? {
+        guard let action = actions.popLast() else { return nil }
         let record = action.record
         let assetID = record.assetID
 
@@ -521,7 +401,7 @@ final class SwipeDeckModel {
             self.session = nil
             // Undo only reaches back through the current session.
             history = []
-            galleryActions = []
+            actions = []
         }
         return .sessionComplete(sessionID: endedID)
     }
@@ -533,7 +413,7 @@ nonisolated struct DeckPlan: Sendable {
     var queueMonths: [String: MonthKey] = [:]
     var pages: [String] = []
 
-    init(mode: DeckMode, index: LibraryIndex, decided: Set<String>, dailyGoal: Int, doneToday: Int, browseWholeMonth: Bool) {
+    init(mode: DeckMode, index: LibraryIndex, decided: Set<String>, dailyGoal: Int, doneToday: Int) {
         switch mode {
         case .daily:
             let queued = DailyPlan.queue(
@@ -552,7 +432,6 @@ nonisolated struct DeckPlan: Sendable {
             }
         }
 
-        guard browseWholeMonth else { return }
         let month: MonthKey?
         switch mode {
         case .month(let key): month = key

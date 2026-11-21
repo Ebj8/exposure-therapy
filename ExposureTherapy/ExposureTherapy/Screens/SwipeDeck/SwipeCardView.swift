@@ -12,8 +12,7 @@ struct SwipeCardView: View {
     let assetID: String
     /// Image size to request, in pixels.
     let targetSize: CGSize
-    /// 0 to 1; follows drag distance.
-    var matchOpacity: Double = 0
+    /// 0 to 1; follows how far the photo is dragged up.
     var unmatchOpacity: Double = 0
 
     @Environment(PhotoLibrary.self) private var library
@@ -96,11 +95,6 @@ struct SwipeCardView: View {
                     chips(for: photo)
                 }
             }
-            .overlay(alignment: .topLeading) {
-                StampView(text: "MATCH", color: .brandTeal, angle: -14)
-                    .opacity(matchOpacity)
-                    .padding(28)
-            }
             .overlay(alignment: .topTrailing) {
                 StampView(text: "UNMATCH", color: .coral, angle: 14)
                     .opacity(unmatchOpacity)
@@ -155,7 +149,7 @@ private struct ChipView: View {
     }
 }
 
-/// The tilted MATCH / UNMATCH stamp.
+/// The tilted UNMATCH stamp.
 private struct StampView: View {
     let text: String
     let color: Color
@@ -179,7 +173,7 @@ private struct StampView: View {
 
 #Preview {
     VStack(spacing: 20) {
-        SwipeCardView(assetID: "preview-2019-06-12", targetSize: CGSize(width: 600, height: 800), matchOpacity: 1)
+        SwipeCardView(assetID: "preview-2019-06-12", targetSize: CGSize(width: 600, height: 800))
         SwipeCardView(assetID: "preview-2019-06-13", targetSize: CGSize(width: 600, height: 800), unmatchOpacity: 0.6)
     }
     .padding(20)

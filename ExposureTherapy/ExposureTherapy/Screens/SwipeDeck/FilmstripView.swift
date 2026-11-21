@@ -3,8 +3,7 @@
 //  ExposureTherapy
 //
 //  A row of the photos taken just before and after the one on the card,
-//  so you can tell the best shot of a burst. Tapping one jumps to it in the
-//  gallery, or opens the peek in the card deck.
+//  so you can tell the best shot of a burst. Tapping one jumps to it.
 //
 
 import SwiftUI

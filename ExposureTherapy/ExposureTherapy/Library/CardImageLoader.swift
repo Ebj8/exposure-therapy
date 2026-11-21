@@ -82,14 +82,6 @@ nonisolated final class CardImageLoader: @unchecked Sendable {
         }
     }
 
-    /// Frees cached images for cards that have been decided.
-    func stopCaching(_ assetIDs: [String], targetSize: CGSize, contentMode: PHImageContentMode) {
-        guard !assetIDs.isEmpty else { return }
-        DispatchQueue.global(qos: .utility).async { [manager] in
-            manager.stopCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: contentMode, options: Self.options)
-        }
-    }
-
     /// Requests an image, never waiting forever: if PhotoKit doesn't answer
     /// in time, it retries once with a fresh manager and more time, then
     /// gives up (nil), so the screen can offer "Try again" instead of a

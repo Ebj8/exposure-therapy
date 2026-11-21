@@ -15,7 +15,6 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.reminderEnabled) private var reminderEnabled = false
     @AppStorage(SettingsKey.reminderTime) private var reminderTime = SettingsDefault.reminderTime
     @AppStorage(SettingsKey.bestStreak) private var bestStreak = 0
-    @AppStorage(SettingsKey.deckStyle) private var deckStyle = SettingsDefault.deckStyle
 
     @State private var isConfirmingReset = false
     @State private var didReset = false
@@ -40,17 +39,6 @@ struct SettingsView: View {
                 }
             } header: {
                 Text("Daily session")
-            }
-
-            Section {
-                Picker("Swipe style", selection: $deckStyle) {
-                    Text("Gallery").tag(DeckStyle.gallery.rawValue)
-                    Text("Cards").tag(DeckStyle.cards.rawValue)
-                }
-            } footer: {
-                Text(deckStyle == DeckStyle.cards.rawValue
-                     ? "Swipe right to keep, left to unmatch."
-                     : "Swipe sideways to browse, up to break up. Moving on keeps a photo.")
             }
 
             Section {
