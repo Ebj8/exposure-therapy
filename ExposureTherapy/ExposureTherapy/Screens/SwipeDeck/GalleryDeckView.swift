@@ -31,6 +31,9 @@ struct GalleryDeckView: View {
     @State private var peek: PeekRequest?
     @State private var decisionFeedback = 0
     @State private var heartFeedback = 0
+    /// Set once this visit has moved on to review, so the end-of-month
+    /// swipe, Done and "everyone decided" can't push it twice.
+    @State private var didFinish = false
 
     @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
     @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
@@ -99,13 +102,17 @@ struct GalleryDeckView: View {
         .onChange(of: cardSize) {
             prefetchAround()
         }
+        .onAppear {
+            // Back from Your exes: allow finishing again.
+            didFinish = false
+        }
         .onChange(of: model.isAllDecided) { _, allDecided in
             // Everyone has an answer: move on, like running out of cards.
             if allDecided {
                 Task {
                     try? await Task.sleep(for: .milliseconds(350))
                     if model.isAllDecided {
-                        router.push(model.finish(context: modelContext))
+                        finishSession()
                     }
                 }
             }
@@ -147,7 +154,7 @@ struct GalleryDeckView: View {
             Spacer()
 
             Button("Done") {
-                router.push(model.finish(context: modelContext))
+                finishSession()
             }
             .font(.inter(16, .bold))
             .foregroundStyle(.brandWhite)
@@ -326,7 +333,10 @@ struct GalleryDeckView: View {
                 let dy = value.translation.height
                 switch dragAxis {
                 case .horizontal:
-                    if (dx < -pageDistance || value.velocity.width < -flickVelocity) && !isOnLastPage {
+                    let forward = dx < -pageDistance || value.velocity.width < -flickVelocity
+                    if forward && isOnLastPage {
+                        finishFromLastPhoto()
+                    } else if forward {
                         goForward(keepingCurrent: true)
                     } else if (dx > pageDistance || value.velocity.width > flickVelocity) && model.position > 0 {
                         goBack()
@@ -381,6 +391,24 @@ struct GalleryDeckView: View {
             dragOffset = .zero
             dragAxis = nil
         }
+    }
+
+    /// Swiping on past the month's last photo: keep it if it's undecided,
+    /// then go to review (Your exes, or Session complete with no exes).
+    private func finishFromLastPhoto() {
+        springBack()
+        if let currentID = model.currentID, model.decision(for: currentID) == nil {
+            model.record(.keep, for: currentID, context: modelContext)
+            noteDecision()
+        }
+        finishSession()
+    }
+
+    /// Goes to review once per visit, whichever way the session ends.
+    private func finishSession() {
+        guard !didFinish else { return }
+        didFinish = true
+        router.push(model.finish(context: modelContext))
     }
 
     /// Previous page. Look-only: nothing is decided.
