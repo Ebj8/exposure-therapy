@@ -67,12 +67,18 @@ struct RootView: View {
         NavigationStack(path: $router.path) {
             HomeView()
                 .navigationDestination(for: AppRoute.self) { route in
-                    switch route {
-                    case .swipeDeck(let mode): SwipeDeckView(mode: mode)
-                    case .yourExes(let sessionID): YourExesView(sessionID: sessionID)
-                    case .sessionComplete(let sessionID): SessionCompleteView(sessionID: sessionID)
-                    case .settings: SettingsView()
+                    Group {
+                        switch route {
+                        case .swipeDeck(let mode): SwipeDeckView(mode: mode)
+                        case .yourExes(let sessionID): YourExesView(sessionID: sessionID)
+                        case .sessionComplete(let sessionID): SessionCompleteView(sessionID: sessionID)
+                        case .settings: SettingsView()
+                        }
                     }
+                    // Tie each screen's state to its route. Without this, replacing
+                    // the path (e.g. "Keep going: {next month}") can reuse the old
+                    // screen in the same slot, keeping its @State: the previous deck.
+                    .id(route)
                 }
         }
         .environment(router)
