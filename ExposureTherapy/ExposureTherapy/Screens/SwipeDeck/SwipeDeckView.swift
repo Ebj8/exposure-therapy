@@ -8,7 +8,16 @@
 import SwiftUI
 
 struct SwipeDeckView: View {
+    let mode: DeckMode
+
     @Environment(Router.self) private var router
+
+    private var title: String {
+        switch mode {
+        case .daily: "Today's session"
+        case .month(let key): key.title
+        }
+    }
 
     var body: some View {
         VStack(spacing: Spacing.block) {
@@ -26,7 +35,7 @@ struct SwipeDeckView: View {
             }
 
             Spacer()
-            Text("Swipe deck")
+            Text(title)
                 .font(.bricolage(26))
                 .foregroundStyle(.plum)
             Spacer()
@@ -40,7 +49,7 @@ struct SwipeDeckView: View {
 
 #Preview {
     NavigationStack {
-        SwipeDeckView()
+        SwipeDeckView(mode: .month(MonthKey(year: 2019, month: 6)))
     }
     .environment(Router())
 }

@@ -7,9 +7,17 @@
 
 import SwiftUI
 
+/// Which photos the Swipe deck serves.
+enum DeckMode: Hashable {
+    /// The next `dailyGoal` unreviewed photos, across months.
+    case daily
+    /// Every unreviewed photo in one month.
+    case month(MonthKey)
+}
+
 /// Screens pushed on top of Home.
 enum AppRoute: Hashable {
-    case swipeDeck
+    case swipeDeck(DeckMode)
     case yourExes
     case sessionComplete
     case settings
