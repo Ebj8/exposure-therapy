@@ -31,8 +31,6 @@ final class SwipeDeckModel {
     /// Months of queued photos, for the daily deck's title.
     @ObservationIgnored private var queueMonths: [String: MonthKey] = [:]
     @ObservationIgnored private var index: LibraryIndex = .empty
-    /// Months with photos, oldest first, for walking neighbors across months.
-    @ObservationIgnored private var sortedMonths: [MonthKey] = []
     /// Decisions from earlier sessions, for marking neighbors in the filmstrip.
     /// This session's are read live from `history`, so rescues show up too.
     @ObservationIgnored private var earlierDecisions: [String: Decision] = [:]
@@ -105,7 +103,6 @@ final class SwipeDeckModel {
     func load(index: LibraryIndex, dailyGoal: Int, context: ModelContext) {
         guard !isLoaded else { return }
         self.index = index
-        sortedMonths = index.months.keys.sorted()
 
         // Skip anything already decided, including exes still waiting for a Breakup.
         let allDecisions = (try? context.fetch(FetchDescriptor<PhotoDecision>())) ?? []
@@ -171,30 +168,19 @@ final class SwipeDeckModel {
         case undecided
     }
 
-    /// The photo plus up to `radius` photos on each side in library order,
-    /// crossing into neighboring months at the edges.
+    /// The photo plus nearby photos from the same month, in library order:
+    /// a window of up to `radius * 2 + 1` photos, centered on the photo when
+    /// possible. Near the start or end of a month the window shifts to fill
+    /// from the other side instead of reaching into the next month.
     func neighbors(of assetID: String, radius: Int) -> [String] {
         guard let month = queueMonths[assetID] ?? month(of: assetID),
-              let monthIndex = sortedMonths.firstIndex(of: month),
               let ids = index.months[month],
               let position = ids.firstIndex(of: assetID)
         else { return [assetID] }
 
-        var before = Array(ids[max(0, position - radius)..<position])
-        var earlier = monthIndex - 1
-        while before.count < radius && earlier >= 0 {
-            let previous = index.months[sortedMonths[earlier]] ?? []
-            before = Array(previous.suffix(radius - before.count)) + before
-            earlier -= 1
-        }
-
-        var after = Array(ids[(position + 1)..<min(ids.count, position + 1 + radius)])
-        var later = monthIndex + 1
-        while after.count < radius && later < sortedMonths.count {
-            after += (index.months[sortedMonths[later]] ?? []).prefix(radius - after.count)
-            later += 1
-        }
-        return before + [assetID] + after
+        let width = min(radius * 2 + 1, ids.count)
+        let start = min(max(position - radius, 0), ids.count - width)
+        return Array(ids[start..<(start + width)])
     }
 
     func status(of assetID: String) -> NeighborStatus {
