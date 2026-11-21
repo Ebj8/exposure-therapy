@@ -17,11 +17,6 @@ nonisolated struct LibraryIndex: Sendable {
 
     static let empty = LibraryIndex()
 
-    /// Number of images in the library now.
-    var totalCount: Int {
-        months.values.reduce(undated.count) { $0 + $1.count }
-    }
-
     /// Fetches every image in the library, oldest first, and groups the IDs
     /// by month in the phone's calendar. This touches every asset, so call
     /// it off the main actor.

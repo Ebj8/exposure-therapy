@@ -2,10 +2,11 @@
 //  GalleryDeckView.swift
 //  ExposureTherapy
 //
-//  Gallery-style deck (trial): swipe sideways to browse photos like the
-//  Photos app, and swipe up to break up with one. Moving on from a photo
-//  you haven't decided on keeps it. Same session, exes and Breakup flow as
-//  the card deck.
+//  Gallery-style deck (trial): swipe sideways to browse the month like the
+//  Photos app; swiping either way off a photo you haven't decided keeps it.
+//  Swipe up to break up: the photo leaves the gallery (and the filmstrip)
+//  and waits on Your exes. Same session, exes and Breakup flow as the card
+//  deck.
 //
 
 import SwiftUI
@@ -268,7 +269,7 @@ struct GalleryDeckView: View {
         .frame(width: size.width, height: size.height)
         .offset(x: CGFloat(offset) * (size.width + pageGap) + horizontal, y: vertical)
         .accessibilityHidden(!isCurrent)
-        .accessibilityValue(decision.map(accessibilityStatus) ?? "Not decided")
+        .accessibilityValue(decision == nil ? "Not decided" : "Reviewed, kept")
     }
 
     private var reviewedPill: some View {
@@ -278,10 +279,6 @@ struct GalleryDeckView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(.brandTeal, in: Capsule())
-    }
-
-    private func accessibilityStatus(_ decision: Decision) -> String {
-        decision == .unmatch ? "Marked for delete" : "Reviewed, kept"
     }
 
     private var emptyState: some View {
@@ -303,14 +300,10 @@ struct GalleryDeckView: View {
 
     // MARK: Gestures
 
-    /// There's a photo on screen to decide or change.
-    private var isCurrentEditable: Bool {
+    /// There's a photo on screen to act on. (Exes leave the gallery, so
+    /// any photo shown can be broken up with, hearted or filed.)
+    private var hasPhoto: Bool {
         model.currentID != nil
-    }
-
-    private var canBreakUpCurrent: Bool {
-        guard let currentID = model.currentID else { return false }
-        return model.effectiveDecision(for: currentID) != .unmatch
     }
 
     private var isOnLastPage: Bool {
@@ -330,9 +323,6 @@ struct GalleryDeckView: View {
                     let atStart = model.position == 0 && translation.width > 0
                     let atEnd = isOnLastPage && translation.width < 0
                     if atStart || atEnd { translation.width *= 0.3 }
-                } else if !canBreakUpCurrent {
-                    // Already an ex: resist instead of breaking up again.
-                    translation.height *= 0.2
                 }
                 dragOffset = translation
             }
@@ -353,7 +343,7 @@ struct GalleryDeckView: View {
                         springBack()
                     }
                 case .vertical:
-                    if canBreakUpCurrent && (dy < -commitDistance || value.velocity.height < -flickVelocity) {
+                    if hasPhoto && (dy < -commitDistance || value.velocity.height < -flickVelocity) {
                         breakUpCurrent()
                     } else {
                         springBack()
@@ -383,9 +373,9 @@ struct GalleryDeckView: View {
 
     // MARK: Actions
 
-    /// Next page. Moving on from an undecided photo keeps it.
-    /// Next page. On the month's last photo there's no next page, so it
-    /// goes to review instead (after ✓, ♡ or an album, the photo is decided).
+    /// Next page; swiping off an undecided photo keeps it. On the month's
+    /// last photo there's no next page, so it goes to review instead (after
+    /// ♡ or an album, the photo is already decided).
     private func goForward(keepingCurrent: Bool) {
         guard let currentID = model.currentID else {
             springBack()
@@ -454,7 +444,7 @@ struct GalleryDeckView: View {
     /// Swipe up or ✕: the photo flies off the top and leaves the gallery
     /// as an ex; the next photo slides into its place.
     private func breakUpCurrent() {
-        guard !isAnimating, canBreakUpCurrent, let assetID = model.currentID else { return }
+        guard !isAnimating, hasPhoto, let assetID = model.currentID else { return }
         isAnimating = true
         let wasLastPhoto = isOnLastPage
         withAnimation(.easeIn(duration: 0.22)) {
@@ -481,7 +471,7 @@ struct GalleryDeckView: View {
     }
 
     private func heart() {
-        guard !isAnimating, isCurrentEditable, let assetID = model.currentID else { return }
+        guard !isAnimating, hasPhoto, let assetID = model.currentID else { return }
         isAnimating = true
         withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
             isShowingHeart = true
@@ -506,7 +496,7 @@ struct GalleryDeckView: View {
     }
 
     private func addToAlbum(_ albumID: String) {
-        guard !isAnimating, isCurrentEditable, let assetID = model.currentID else { return }
+        guard !isAnimating, hasPhoto, let assetID = model.currentID else { return }
         isPickingAlbum = false
         isAnimating = true
         Task {
@@ -586,17 +576,17 @@ struct GalleryDeckView: View {
                 DeckActionButton(systemImage: "plus.square", accessibilityLabel: "Add to album", kind: .plain(.plum), diameter: 48) {
                     isPickingAlbum = true
                 }
-                .disabled(!isCurrentEditable)
+                .disabled(!hasPhoto)
 
                 DeckActionButton(systemImage: "xmark", accessibilityLabel: "Break up", kind: .unmatch, diameter: 68) {
                     breakUpCurrent()
                 }
-                .disabled(!canBreakUpCurrent)
+                .disabled(!hasPhoto)
 
                 DeckActionButton(systemImage: "heart", accessibilityLabel: "Heart", kind: .plain(.rose), diameter: 48) {
                     heart()
                 }
-                .disabled(!isCurrentEditable)
+                .disabled(!hasPhoto)
             }
 
             HStack {

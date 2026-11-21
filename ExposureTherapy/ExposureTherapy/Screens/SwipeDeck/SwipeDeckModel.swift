@@ -58,8 +58,8 @@ final class SwipeDeckModel {
         session?.id
     }
 
-    /// Month mode: the month. Daily mode: the top card's month, since the
-    /// queue runs across months.
+    /// Month mode: the month. Daily mode: the month of the photo on screen
+    /// (a daily session stays within one month).
     var title: String {
         switch mode {
         case .month(let key):

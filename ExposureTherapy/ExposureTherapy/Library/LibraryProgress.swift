@@ -122,11 +122,6 @@ nonisolated struct LibraryProgress: Sendable {
         return resumeMonth
     }
 
-    /// Share of the library reviewed, 0 to 1.
-    var fractionReviewed: Double {
-        totalPhotos == 0 ? 0 : Double(reviewedPhotos) / Double(totalPhotos)
-    }
-
     /// The year Home opens on: the year of the month in progress, or the
     /// newest year once everything is done.
     var defaultYear: Int? {
