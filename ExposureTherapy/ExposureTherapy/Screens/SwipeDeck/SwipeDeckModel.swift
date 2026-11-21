@@ -19,9 +19,12 @@ final class SwipeDeckModel {
     private(set) var position = 0
     private(set) var isLoaded = false
 
-    /// Daily mode: decisions already made today before this queue, so the
-    /// count reads "31 of 50 today" after a break.
-    private(set) var dailyOffset = 0
+    /// Daily mode: today's goal, and today's decisions when the deck opened
+    /// (from earlier daily sessions, or this one before a relaunch).
+    private(set) var dailyGoal = 0
+    private(set) var doneTodayAtLoad = 0
+    /// `history.count` at load, so only new decisions add to today's count.
+    @ObservationIgnored private var historyCountAtLoad = 0
 
     /// This session's decisions, oldest first, for multi-step undo.
     private(set) var history: [PhotoDecision] = []
@@ -117,8 +120,8 @@ final class SwipeDeckModel {
         if case .daily = mode {
             let sessions = (try? context.fetch(FetchDescriptor<Session>())) ?? []
             doneToday = DailyPlan.doneToday(decisions: allDecisions, sessions: sessions)
-            // After today's goal is met, "Keep going anyway" starts a fresh count.
-            dailyOffset = doneToday < dailyGoal ? doneToday : 0
+            self.dailyGoal = dailyGoal
+            doneTodayAtLoad = doneToday
         }
 
         // Walking the library to build the queue runs off the main thread.
@@ -149,6 +152,7 @@ final class SwipeDeckModel {
         }
 
         position = queue.first.flatMap { visiblePages.firstIndex(of: $0) } ?? 0
+        historyCountAtLoad = history.count
         isLoaded = true
     }
 
@@ -223,14 +227,25 @@ final class SwipeDeckModel {
     }
 
     /// Every photo in the queue has a decision.
+    /// Daily mode: decisions made today, counting every photo decided in
+    /// this deck (past the goal too) plus today's earlier daily sessions.
+    var decidedToday: Int {
+        doneTodayAtLoad + max(history.count - historyCountAtLoad, 0)
+    }
+
     var isAllDecided: Bool {
         isLoaded && !queue.isEmpty && decidedInQueue == queue.count
     }
 
     /// Share of the session decided, 0 to 1.
     var progress: Double {
-        let total = dailyOffset + queue.count
-        return total == 0 ? 0 : Double(dailyOffset + decidedInQueue) / Double(total)
+        switch mode {
+        case .daily:
+            // Fills up to the goal; reviewing past it keeps it full.
+            return dailyGoal == 0 ? 0 : min(Double(decidedToday) / Double(dailyGoal), 1)
+        case .month:
+            return queue.isEmpty ? 0 : Double(decidedInQueue) / Double(queue.count)
+        }
     }
 
     var canUndo: Bool {

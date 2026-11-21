@@ -101,7 +101,7 @@ Four screens make one loop: Home → Swipe deck → Your exes → Session comple
 
 A gallery of one month's photos (or a daily session, which also stays within one month).
 
-1. **Top bar:** a round back button; in the center "{Month Year}" with "{position} of {total}" (month mode) or "{decided} of {goal} today" (daily mode); a plum "Done" pill on the right that goes to review.
+1. **Top bar:** a round back button; in the center "{Month Year}" with "{position} of {total}" (month mode) or "{decided} of {goal} today" (daily mode, then "Goal reached · {n} today"); a plum "Done" pill on the right that goes to review.
 2. A thin rose progress bar for the session.
 3. **Gallery:**
    - Every photo of the month, oldest first, opening on the first one without a decision. You can swipe back to photos you've already decided.
@@ -115,7 +115,8 @@ A gallery of one month's photos (or a daily session, which also stays within one
 5. **Hint line:** "Swipe up to break up · swipe to keep". Hide it after the first 10 decisions.
 6. **Button row:** Undo (48 pt) on the left; a group of three centered on the screen, with a gap before it: Add to album (48 pt), Discard ✕ (68 pt, white with a coral border), Heart (48 pt).
 7. **Exes chip:** a blush pill, "✕ {n} exes this session". Tapping it opens Your exes; disabled at zero.
-8. **Going to review:** swiping forward past the month's last photo, deciding the last photo, deciding every photo, or tapping Done goes to Your exes (or Session complete with zero exes). If nothing was decided this visit (just browsing), go back Home instead.
+8. **Going to review:** swiping forward past the month's last photo, deciding the last photo, tapping Done, or (month mode) deciding every photo goes to Your exes (or Session complete with zero exes). If nothing was decided this visit (just browsing), go back Home instead.
+9. **Daily goal:** reaching today's goal doesn't end the session. Confetti falls over the gallery with a plum "Goal reached!" banner ("{goal} photos reviewed today. Keep going if you like.") and a success haptic, then you keep reviewing the rest of the month. It shows once a day; with Reduce Motion on, only the banner shows.
 
 ### 3. Your exes
 

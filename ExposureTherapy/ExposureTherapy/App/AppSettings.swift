@@ -18,6 +18,9 @@ enum SettingsKey {
     static let bestStreak = "bestStreak"
     /// Decisions made so far, up to 10; the swipe hint hides after 10.
     static let hintDecisions = "hintDecisions"
+    /// The day ("yyyy-MM-dd") the daily goal was last celebrated, so the
+    /// confetti shows once a day.
+    static let goalCelebratedOn = "goalCelebratedOn"
 }
 
 enum SettingsDefault {

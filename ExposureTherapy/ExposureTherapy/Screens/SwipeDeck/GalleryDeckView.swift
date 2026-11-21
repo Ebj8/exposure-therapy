@@ -35,6 +35,10 @@ struct GalleryDeckView: View {
     @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
     @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
     @AppStorage(SettingsKey.hintDecisions) private var hintDecisions = 0
+    @AppStorage(SettingsKey.goalCelebratedOn) private var goalCelebratedOn = ""
+    /// Shows the "Goal reached!" confetti and banner over the gallery.
+    @State private var isCelebrating = false
+    @State private var goalFeedback = 0
 
     /// Upward drag that breaks up, and that fully shows the stamp.
     private let commitDistance: CGFloat = 120
@@ -120,8 +124,9 @@ struct GalleryDeckView: View {
             didFinish = false
         }
         .onChange(of: model.isAllDecided) { _, allDecided in
-            // Everyone has an answer: move on, like running out of cards.
-            if allDecided {
+            // Month: everyone has an answer, so move on. Daily: reaching the
+            // goal celebrates instead (below) and you keep reviewing.
+            if allDecided, case .month = model.mode {
                 Task {
                     try? await Task.sleep(for: .milliseconds(350))
                     if model.isAllDecided {
@@ -130,6 +135,23 @@ struct GalleryDeckView: View {
                 }
             }
         }
+        .onChange(of: model.decidedToday) { old, new in
+            celebrateIfGoalReached(from: old, to: new)
+        }
+        .overlay(alignment: .top) {
+            if isCelebrating {
+                goalBanner
+                    .padding(.top, 72)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .overlay {
+            if isCelebrating {
+                ConfettiView()
+                    .ignoresSafeArea()
+            }
+        }
+        .sensoryFeedback(.success, trigger: goalFeedback)
         .sensoryFeedback(.impact(weight: .light), trigger: decisionFeedback)
         .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.7), trigger: heartFeedback)
         .sheet(isPresented: $isPickingAlbum) {
@@ -180,7 +202,8 @@ struct GalleryDeckView: View {
         switch model.mode {
         case .daily:
             // Today's count is decisions toward the goal, not the page.
-            return "\(model.dailyOffset + model.decidedInQueue) of \(model.dailyOffset + model.queue.count) today"
+            let done = model.decidedToday
+            return done < model.dailyGoal ? "\(done) of \(model.dailyGoal) today" : "Goal reached · \(done) today"
         case .month:
             return "\(model.position + 1) of \(model.visiblePages.count)"
         }
@@ -293,6 +316,57 @@ struct GalleryDeckView: View {
                 .foregroundStyle(.muted)
                 .multilineTextAlignment(.center)
         }
+    }
+
+    // MARK: Daily goal
+
+    /// Celebrates once a day, the moment today's decisions cross the goal.
+    /// Reviewing carries on; nothing else changes.
+    private func celebrateIfGoalReached(from old: Int, to new: Int) {
+        guard case .daily = model.mode, model.isLoaded, model.dailyGoal > 0,
+              old < model.dailyGoal, new >= model.dailyGoal else { return }
+        let today = Date.now.formatted(.iso8601.year().month().day())
+        guard goalCelebratedOn != today else { return }
+        goalCelebratedOn = today
+        goalFeedback += 1
+        AccessibilityNotification.Announcement("Goal reached. \(model.dailyGoal) photos reviewed today.").post()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            isCelebrating = true
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(2.8))
+            withAnimation(.easeOut(duration: 0.3)) {
+                isCelebrating = false
+            }
+        }
+    }
+
+    private var goalBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "party.popper.fill")
+                .font(.system(size: 26))
+                .foregroundStyle(.blush)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Goal reached!")
+                    .font(.bricolage(22, relativeTo: .title3))
+                    .foregroundStyle(.brandWhite)
+                Text("\(model.dailyGoal) photos reviewed today. Keep going if you like.")
+                    .font(.inter(14, relativeTo: .footnote))
+                    .foregroundStyle(.brandWhite.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(.plum, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .shadow(color: .plum.opacity(0.25), radius: 16, y: 8)
+        .padding(.horizontal, Spacing.screen)
+        .onTapGesture {
+            withAnimation(.easeOut(duration: 0.3)) { isCelebrating = false }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isStaticText)
     }
 
     /// Card size in pixels, for image requests.
