@@ -37,38 +37,39 @@ nonisolated final class CardImageLoader: @unchecked Sendable {
     @concurrent
     func photo(for assetID: String, targetSize: CGSize) async -> CardPhoto? {
         guard let asset = Self.assets(for: [assetID]).first else { return nil }
-        guard let image = await requestImage(for: asset, targetSize: targetSize) else { return nil }
+        // Fit, not fill: the card shows the whole photo at its own shape.
+        guard let image = await requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit) else { return nil }
         return CardPhoto(image: image, creationDate: asset.creationDate, fileSize: Self.fileSize(of: asset))
     }
 
-    /// Loads just the image, e.g. a grid thumbnail.
+    /// Loads just the image, e.g. a grid thumbnail, filled to a square crop.
     @concurrent
     func image(for assetID: String, targetSize: CGSize) async -> UIImage? {
         guard let asset = Self.assets(for: [assetID]).first else { return nil }
-        return await requestImage(for: asset, targetSize: targetSize)
+        return await requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill)
     }
 
     /// Starts loading upcoming cards into the cache. The asset lookup runs
     /// in the background so it never holds up the screen.
-    func startCaching(_ assetIDs: [String], targetSize: CGSize) {
+    func startCaching(_ assetIDs: [String], targetSize: CGSize, contentMode: PHImageContentMode) {
         guard !assetIDs.isEmpty else { return }
         DispatchQueue.global(qos: .utility).async { [manager] in
-            manager.startCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: .aspectFill, options: Self.options)
+            manager.startCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: contentMode, options: Self.options)
         }
     }
 
     /// Frees cached images for cards that have been decided.
-    func stopCaching(_ assetIDs: [String], targetSize: CGSize) {
+    func stopCaching(_ assetIDs: [String], targetSize: CGSize, contentMode: PHImageContentMode) {
         guard !assetIDs.isEmpty else { return }
         DispatchQueue.global(qos: .utility).async { [manager] in
-            manager.stopCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: .aspectFill, options: Self.options)
+            manager.stopCachingImages(for: Self.assets(for: assetIDs), targetSize: targetSize, contentMode: contentMode, options: Self.options)
         }
     }
 
-    private func requestImage(for asset: PHAsset, targetSize: CGSize) async -> UIImage? {
+    private func requestImage(for asset: PHAsset, targetSize: CGSize, contentMode: PHImageContentMode) async -> UIImage? {
         await withCheckedContinuation { continuation in
             // With .highQualityFormat, PhotoKit calls this exactly once.
-            manager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill, options: Self.options) { image, _ in
+            manager.requestImage(for: asset, targetSize: targetSize, contentMode: contentMode, options: Self.options) { image, _ in
                 continuation.resume(returning: image)
             }
         }

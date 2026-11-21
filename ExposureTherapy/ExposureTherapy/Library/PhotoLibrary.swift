@@ -55,13 +55,19 @@ final class PhotoLibrary {
     /// Prefetches upcoming cards at `targetSize` pixels.
     func prefetchCards(_ assetIDs: [String], targetSize: CGSize) {
         guard !isPreview else { return }
-        imageLoader.startCaching(assetIDs, targetSize: targetSize)
+        imageLoader.startCaching(assetIDs, targetSize: targetSize, contentMode: .aspectFit)
+    }
+
+    /// Prefetches square grid thumbnails at `targetSize` pixels.
+    func prefetchThumbnails(_ assetIDs: [String], targetSize: CGSize) {
+        guard !isPreview else { return }
+        imageLoader.startCaching(assetIDs, targetSize: targetSize, contentMode: .aspectFill)
     }
 
     /// Releases prefetched cards that are no longer needed.
     func stopPrefetchingCards(_ assetIDs: [String], targetSize: CGSize) {
         guard !isPreview else { return }
-        imageLoader.stopCaching(assetIDs, targetSize: targetSize)
+        imageLoader.stopCaching(assetIDs, targetSize: targetSize, contentMode: .aspectFit)
     }
 
     /// Loads a grid thumbnail at `targetSize` pixels.

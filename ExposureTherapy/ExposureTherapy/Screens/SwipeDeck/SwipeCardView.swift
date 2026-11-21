@@ -22,10 +22,43 @@ struct SwipeCardView: View {
 
     private let shape = RoundedRectangle(cornerRadius: Radius.swipeCard, style: .continuous)
 
+    /// The photo's width ÷ height once loaded, so the card takes its shape.
+    private var aspectRatio: CGFloat? {
+        guard let size = photo?.image.size, size.height > 0 else { return nil }
+        return size.width / size.height
+    }
+
     var body: some View {
+        // Sized to the photo's own shape (as large as fits) so nothing is
+        // cropped; the skeleton fills the whole space until it loads.
+        Group {
+            if let aspectRatio {
+                card.aspectRatio(aspectRatio, contentMode: .fit)
+            } else {
+                card
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // The whole slot stays draggable, even beside a wide photo.
+        .contentShape(Rectangle())
+        .task(id: targetSize) {
+            guard targetSize.width > 0, photo == nil else { return }
+            let loaded = await library.cardPhoto(for: assetID, targetSize: targetSize)
+            withAnimation(.easeOut(duration: 0.2)) {
+                photo = loaded
+                didFail = loaded == nil
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var card: some View {
         Color.line
             .overlay {
                 if let photo {
+                    // The card matches the photo's shape, so filling it
+                    // crops nothing.
                     Image(uiImage: photo.image)
                         .resizable()
                         .scaledToFill()
@@ -53,15 +86,7 @@ struct SwipeCardView: View {
                     .opacity(unmatchOpacity)
                     .padding(28)
             }
-            .contentShape(shape)
             .shadow(color: .plum.opacity(0.18), radius: 18, y: 10)
-            .task(id: targetSize) {
-                guard targetSize.width > 0, photo == nil else { return }
-                photo = await library.cardPhoto(for: assetID, targetSize: targetSize)
-                didFail = photo == nil
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibilityDescription)
     }
 
     private func chips(for photo: CardPhoto) -> some View {
@@ -102,6 +127,8 @@ private struct ChipView: View {
             .font(.inter(13, .semibold, relativeTo: .caption))
             .foregroundStyle(.brandWhite)
             .lineLimit(1)
+            // Narrow portrait cards: shrink a little before truncating.
+            .minimumScaleFactor(0.75)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background(.plum.opacity(0.8), in: Capsule())
