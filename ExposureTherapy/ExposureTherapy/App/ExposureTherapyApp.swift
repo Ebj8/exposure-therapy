@@ -11,6 +11,7 @@ import SwiftData
 
 @main
 struct ExposureTherapyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var library = PhotoLibrary()
 
     var body: some Scene {
@@ -40,8 +41,19 @@ struct RootView: View {
                 AccessDeniedView()
             }
         }
+        .background {
+            if library.hasAccess {
+                ReminderSync()
+            }
+        }
         .task {
             await library.start()
+        }
+        .task {
+            // A tapped reminder opens the app on Home.
+            for await _ in NotificationCenter.default.notifications(named: .openHome) {
+                router.popToHome()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             // Photo access may have changed in the Settings app.
