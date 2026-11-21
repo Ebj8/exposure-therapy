@@ -103,7 +103,11 @@ struct GalleryDeckView: View {
             prefetchAround()
         }
         .onAppear {
-            // Back from Your exes: allow finishing again.
+            // Back from Your exes ("Not yet, keep swiping"): don't land on a
+            // photo you just broke up with, and allow finishing again.
+            if didFinish {
+                stepBackFromEx()
+            }
             didFinish = false
         }
         .onChange(of: model.isAllDecided) { _, allDecided in
@@ -423,6 +427,17 @@ struct GalleryDeckView: View {
             noteDecision()
         }
         finishSession()
+    }
+
+    /// If the current photo is an ex, moves to the nearest earlier photo
+    /// that isn't, so you pick up on a keeper. Rescues on Your exes count:
+    /// a rescued photo is a keep again, so you stay on it.
+    private func stepBackFromEx() {
+        guard let currentID = model.currentID, model.effectiveDecision(for: currentID) == .unmatch else { return }
+        let earlier = model.pages[..<model.position].lastIndex { model.effectiveDecision(for: $0) != .unmatch }
+        if let earlier {
+            model.moveTo(page: earlier)
+        }
     }
 
     /// Goes to review once per visit, whichever way the session ends. If you
