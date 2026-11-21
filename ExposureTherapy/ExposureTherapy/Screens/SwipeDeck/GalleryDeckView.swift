@@ -42,6 +42,9 @@ struct GalleryDeckView: View {
     private let pageDistance: CGFloat = 70
     private let flickVelocity: CGFloat = 700
     private let pageGap: CGFloat = 16
+    /// How far the last photo follows a left drag: enough to feel it move
+    /// toward "Finish", with a little resistance.
+    private let lastPageDrag: CGFloat = 0.6
 
     init(mode: DeckMode) {
         _model = State(initialValue: SwipeDeckModel(mode: mode))
@@ -221,6 +224,8 @@ struct GalleryDeckView: View {
                     pageView(page.assetID, offset: page.offset, size: proxy.size)
                 }
 
+                finishMarker
+
                 // Pops over the photo on a heart.
                 Image(systemName: "heart.fill")
                     .font(.system(size: 120))
@@ -271,6 +276,30 @@ struct GalleryDeckView: View {
         .accessibilityValue(decision == nil ? "Not decided" : "Reviewed, kept")
     }
 
+    /// On the last photo, dragging left reveals where releasing will take
+    /// you, so finishing the month reads as a swipe, not a dead end.
+    private var finishMarker: some View {
+        let progress = isOnLastPage && dragAxis == .horizontal
+            ? min(max(-dragOffset.width / (pageDistance * lastPageDrag), 0), 1)
+            : 0
+        return HStack {
+            Spacer()
+            VStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.rose)
+                Text("Finish")
+                    .font(.inter(14, .bold))
+                    .foregroundStyle(.plum)
+            }
+            .padding(.trailing, 4)
+            .scaleEffect(0.8 + 0.2 * progress)
+            .opacity(progress)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
     private var reviewedPill: some View {
         Label("Reviewed", systemImage: "checkmark")
             .font(.inter(13, .bold))
@@ -318,15 +347,21 @@ struct GalleryDeckView: View {
                 }
                 var translation = value.translation
                 if dragAxis == .horizontal {
-                    // Rubber-band at the first and last photo.
-                    let atStart = model.position == 0 && translation.width > 0
-                    let atEnd = isOnLastPage && translation.width < 0
-                    if atStart || atEnd { translation.width *= 0.3 }
+                    if model.position == 0 && translation.width > 0 {
+                        // Rubber-band at the first photo: nothing before it.
+                        translation.width *= 0.3
+                    } else if isOnLastPage && translation.width < 0 {
+                        // The last photo moves toward "Finish".
+                        translation.width *= lastPageDrag
+                    }
                 }
                 dragOffset = translation
             }
             .onEnded { value in
-                guard !isAnimating else { return }
+                guard !isAnimating else {
+                    springBack()
+                    return
+                }
                 let dx = value.translation.width
                 let dy = value.translation.height
                 switch dragAxis {
