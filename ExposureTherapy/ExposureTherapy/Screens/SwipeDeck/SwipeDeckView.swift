@@ -33,6 +33,8 @@ struct SwipeDeckView: View {
     @State private var decisionFeedback = 0
     /// Bumped twice on a heart, for a soft double tap.
     @State private var heartFeedback = 0
+    /// Set to open the full-screen peek at nearby photos.
+    @State private var peek: PeekRequest?
 
     /// Drag distance that commits a decision, and that fully shows a stamp.
     private let commitDistance: CGFloat = 120
@@ -54,8 +56,18 @@ struct SwipeDeckView: View {
 
             cardStack
                 .padding(.horizontal, Spacing.screen)
-                .padding(.vertical, Spacing.blockLoose)
+                .padding(.top, Spacing.blockLoose)
+                .padding(.bottom, Spacing.block)
                 .frame(maxHeight: .infinity)
+
+            if let currentID = model.currentID {
+                FilmstripView(
+                    assetIDs: model.neighbors(of: currentID, radius: 3),
+                    status: model.status(of:),
+                    onSelect: { openPeek(at: $0) }
+                )
+                .padding(.bottom, Spacing.blockTight)
+            }
 
             if hintDecisions < 10 {
                 Text("Right to keep · left to unmatch · double-tap to heart")
@@ -94,6 +106,12 @@ struct SwipeDeckView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: decisionFeedback)
         .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.7), trigger: heartFeedback)
+        .sensoryFeedback(.impact(weight: .medium), trigger: peek?.id) { _, newValue in
+            newValue != nil
+        }
+        .fullScreenCover(item: $peek) { request in
+            PeekView(request: request, status: model.status(of:))
+        }
         .sheet(isPresented: $isPickingAlbum) {
             AlbumPickerSheet(onPick: addToAlbum, onCreate: createAlbumAndAdd)
         }
@@ -211,11 +229,26 @@ struct SwipeDeckView: View {
         .allowsHitTesting(isTop)
         .gesture(dragGesture, including: isTop ? .all : .none)
         .simultaneousGesture(TapGesture(count: 2).onEnded { heart() }, including: isTop ? .all : .none)
+        // Press and hold to compare with nearby photos. Moving the finger
+        // cancels it, so it never fights the swipe.
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.4).onEnded { _ in openPeek(at: assetID) },
+            including: isTop ? .all : .none
+        )
         .accessibilityHidden(!isTop)
         .accessibilityAction(named: "Keep") { commit(.keep) }
         .accessibilityAction(named: "Unmatch") { commit(.unmatch) }
         .accessibilityAction(named: "Heart") { heart() }
         .accessibilityAction(named: "Add to album") { isPickingAlbum = true }
+        .accessibilityAction(named: "See nearby photos") { openPeek(at: assetID) }
+    }
+
+    /// Opens the peek on `assetID`, showing the 10 photos on each side of
+    /// the card's photo.
+    private func openPeek(at assetID: String) {
+        guard !isFlying, let currentID = model.currentID else { return }
+        dragOffset = .zero
+        peek = PeekRequest(assetIDs: model.neighbors(of: currentID, radius: 10), startID: assetID)
     }
 
     private var emptyState: some View {
