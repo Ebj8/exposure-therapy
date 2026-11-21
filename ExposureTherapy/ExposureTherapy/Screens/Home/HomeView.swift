@@ -16,6 +16,7 @@ struct HomeView: View {
     @Query private var deletedPhotos: [DeletedPhoto]
     @Query private var sessions: [Session]
     @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// The year picked with the chevrons; nil means the default year.
     @State private var selectedYear: Int?
 
@@ -32,22 +33,22 @@ struct HomeView: View {
                     LimitedAccessBanner()
                 }
 
-                if library.hasLoaded {
+                if !library.hasLoaded {
+                    ProgressView()
+                        .tint(.rose)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
+                } else if progress.totalPhotos == 0 {
+                    EmptyLibraryView(isLimited: library.authorization == .limited)
+                } else {
                     statTiles(snapshot)
                     todayCard
                     LibraryProgressView(reviewed: progress.reviewedPhotos, total: progress.totalPhotos)
                         .padding(.top, 8)
                     yearGrid(progress)
-                } else {
-                    ProgressView()
-                        .tint(.rose)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 40)
+                        // Month tiles are fixed squares; past this size labels can't fit.
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 }
-
-                #if DEBUG
-                debugScreenLinks
-                #endif
             }
             .padding(.horizontal, Spacing.screen)
             .padding(.bottom, Spacing.screen)
@@ -75,6 +76,8 @@ struct HomeView: View {
             }
         }
         .padding(.top, 8)
+        // The header is a fixed row; past this size the title crowds the icon.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     private var title: some View {
@@ -107,7 +110,11 @@ struct HomeView: View {
     }
 
     private func statTiles(_ snapshot: LibrarySnapshot) -> some View {
-        HStack(spacing: 10) {
+        // Side by side normally; stacked at accessibility text sizes.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
             StatTileView(systemImage: "flame", iconColor: .rose, value: snapshot.streak.formatted(), label: "day streak")
             StatTileView(systemImage: "trash", iconColor: .brandTeal, value: Stats.storageText(bytes: snapshot.bytesFreed), label: "let go")
             StatTileView(systemImage: "photo", iconColor: .plum, value: "\(snapshot.progress.percentReviewed)%", label: "reviewed")
@@ -128,22 +135,6 @@ struct HomeView: View {
             }
         }
     }
-
-    #if DEBUG
-    /// Temporary buttons to reach the empty screens until their real
-    /// entry points are built in later milestones.
-    private var debugScreenLinks: some View {
-        VStack(alignment: .leading, spacing: Spacing.blockTight) {
-            Text("DEBUG · SCREENS")
-                .font(.inter(12, .bold))
-                .foregroundStyle(.muted)
-            Button("Session complete") { router.push(.sessionComplete(sessionID: nil)) }
-        }
-        .font(.inter(16, .semibold))
-        .tint(.rose)
-        .padding(.top, Spacing.blockLoose)
-    }
-    #endif
 }
 
 #Preview("Full access") {
@@ -162,4 +153,13 @@ struct HomeView: View {
     .environment(Router())
     .environment(PreviewData.library(authorization: .limited))
     .modelContainer(PreviewData.container)
+}
+
+#Preview("Empty library") {
+    NavigationStack {
+        HomeView()
+    }
+    .environment(Router())
+    .environment(PhotoLibrary(previewIndex: .empty))
+    .modelContainer(PreviewData.emptyContainer)
 }

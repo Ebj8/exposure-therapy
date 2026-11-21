@@ -16,6 +16,8 @@ struct YourExesView: View {
 
     @State private var model: YourExesModel
     @State private var didFail = false
+    /// Set when a Breakup completes, for a success haptic.
+    @State private var didBreakUp = false
 
     /// Grid thumbnails are requested at 200 pt (SPEC.md → Reading the library).
     private var thumbnailSize: CGSize {
@@ -40,6 +42,8 @@ struct YourExesView: View {
             }
 
             footer
+                // The footer is pinned; capped so it can't crowd out the grid.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .padding(.horizontal, Spacing.screen)
                 .padding(.top, Spacing.blockTight)
                 .padding(.bottom, 8)
@@ -50,6 +54,7 @@ struct YourExesView: View {
             model.load(context: modelContext)
             library.prefetchCards(model.exes.map(\.id), targetSize: thumbnailSize)
         }
+        .sensoryFeedback(.success, trigger: didBreakUp)
         .alert("Couldn't delete photos", isPresented: $didFail) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -176,6 +181,7 @@ struct YourExesView: View {
     private func breakup() async {
         switch await model.breakup(library: library, context: modelContext) {
         case .deleted:
+            didBreakUp = true
             router.push(.sessionComplete(sessionID: model.sessionID))
         case .cancelled:
             // Stay here with the exes still marked.

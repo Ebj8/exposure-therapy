@@ -31,7 +31,7 @@ struct StatTileView: View {
             Text(label)
                 .font(.inter(14, relativeTo: .footnote))
                 .foregroundStyle(.muted)
-                .lineLimit(1)
+                .lineLimit(2)
                 .minimumScaleFactor(0.8)
         }
         .padding(14)

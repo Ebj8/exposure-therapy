@@ -30,13 +30,19 @@ struct TodayCardView: View {
                         .foregroundStyle(.brandWhite.opacity(0.85))
                 }
             }
+            // A one-line eyebrow; it wraps awkwardly at the largest sizes.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
 
             Text(headline)
                 .font(.bricolage(26, relativeTo: .title))
                 .foregroundStyle(.brandWhite)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if let startMonth {
+            if count == 0 {
+                Text("Your whole library has been reviewed. New photos will show up here.")
+                    .font(.inter(16))
+                    .foregroundStyle(.brandWhite.opacity(0.9))
+            } else if let startMonth {
                 Text("Picking up where you left off in \(startMonth.title).")
                     .font(.inter(16))
                     .foregroundStyle(.brandWhite.opacity(0.9))
@@ -60,7 +66,10 @@ struct TodayCardView: View {
     }
 
     private var headline: String {
-        if isDoneForToday || count == 0 {
+        if count == 0 {
+            return "Every photo has heard back."
+        }
+        if isDoneForToday {
             return "You're all caught up today."
         }
         return count == 1 ? "1 photo is waiting to hear back." : "\(count) photos are waiting to hear back."
@@ -69,6 +78,12 @@ struct TodayCardView: View {
 
 #Preview("Waiting") {
     TodayCardView(count: 50, startMonth: MonthKey(year: 2019, month: 6), isDoneForToday: false) {}
+        .padding()
+        .background(.cream)
+}
+
+#Preview("Library done") {
+    TodayCardView(count: 0, startMonth: nil, isDoneForToday: false) {}
         .padding()
         .background(.cream)
 }

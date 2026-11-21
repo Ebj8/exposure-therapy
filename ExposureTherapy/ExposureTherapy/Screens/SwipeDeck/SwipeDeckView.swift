@@ -27,6 +27,12 @@ struct SwipeDeckView: View {
     @State private var isPickingAlbum = false
     @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
     @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
+    /// The hint line hides after the first 10 decisions.
+    @AppStorage(SettingsKey.hintDecisions) private var hintDecisions = 0
+    /// Bumped on each decision, for a light haptic.
+    @State private var decisionFeedback = 0
+    /// Bumped twice on a heart, for a soft double tap.
+    @State private var heartFeedback = 0
 
     /// Drag distance that commits a decision, and that fully shows a stamp.
     private let commitDistance: CGFloat = 120
@@ -51,11 +57,14 @@ struct SwipeDeckView: View {
                 .padding(.vertical, Spacing.blockLoose)
                 .frame(maxHeight: .infinity)
 
-            Text("Right to keep · left to unmatch · double-tap to heart")
-                .font(.inter(14, relativeTo: .footnote))
-                .foregroundStyle(.muted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, Spacing.screen)
+            if hintDecisions < 10 {
+                Text("Right to keep · left to unmatch · double-tap to heart")
+                    .font(.inter(14, relativeTo: .footnote))
+                    .foregroundStyle(.muted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Spacing.screen)
+                    .transition(.opacity)
+            }
 
             buttonRow
                 .padding(.top, Spacing.block)
@@ -83,6 +92,8 @@ struct SwipeDeckView: View {
         .onChange(of: cardSize) {
             prefetchUpcoming()
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: decisionFeedback)
+        .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.7), trigger: heartFeedback)
         .sheet(isPresented: $isPickingAlbum) {
             AlbumPickerSheet(onPick: addToAlbum, onCreate: createAlbumAndAdd)
         }
@@ -283,7 +294,11 @@ struct SwipeDeckView: View {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 record()
                 dragOffset = .zero
+                if hintDecisions < 10 {
+                    hintDecisions += 1
+                }
             }
+            decisionFeedback += 1
             isFlying = false
         }
     }
@@ -295,6 +310,12 @@ struct SwipeDeckView: View {
         isFlying = true
         withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
             isShowingHeart = true
+        }
+        Task {
+            // A soft double tap as the heart pops.
+            heartFeedback += 1
+            try? await Task.sleep(for: .milliseconds(110))
+            heartFeedback += 1
         }
         Task {
             async let madeFavorite = library.setFavorite(true, assetID: assetID)

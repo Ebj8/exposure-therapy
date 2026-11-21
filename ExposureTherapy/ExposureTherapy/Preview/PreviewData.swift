@@ -112,6 +112,18 @@ enum PreviewData {
     /// An open June 2019 session with 14 exes waiting for a Breakup.
     static let exesSessionID = UUID()
 
+    /// An empty in-memory store, for empty-state previews.
+    static let emptyContainer: ModelContainer = {
+        do {
+            return try ModelContainer(
+                for: PhotoDecision.self, DeletedPhoto.self, Session.self,
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            )
+        } catch {
+            fatalError("Could not create preview ModelContainer: \(error)")
+        }
+    }()
+
     /// An in-memory store holding the sample decisions and deletions.
     static let container: ModelContainer = {
         do {

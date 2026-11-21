@@ -16,6 +16,8 @@ enum SettingsKey {
     static let lastAlbumID = "lastAlbumID"
     /// Longest streak so far, for "new best".
     static let bestStreak = "bestStreak"
+    /// Decisions made so far, up to 10; the swipe hint hides after 10.
+    static let hintDecisions = "hintDecisions"
 }
 
 enum SettingsDefault {
