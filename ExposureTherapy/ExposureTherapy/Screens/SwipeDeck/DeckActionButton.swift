@@ -13,14 +13,12 @@ struct DeckActionButton: View {
         case plain(Color)
         /// White circle with a coral border and coral icon.
         case unmatch
-        /// Teal circle with a white icon.
-        case match
     }
 
     let systemImage: String
     let accessibilityLabel: String
     let kind: Kind
-    /// 48 for small buttons, 68 for Unmatch and Match.
+    /// 48 for small buttons, 68 for Discard.
     let diameter: CGFloat
     let action: () -> Void
 
@@ -30,7 +28,7 @@ struct DeckActionButton: View {
                 .font(.system(size: diameter * 0.4, weight: .bold))
                 .foregroundStyle(iconColor)
                 .frame(width: diameter, height: diameter)
-                .background(fill, in: Circle())
+                .background(.brandWhite, in: Circle())
                 .overlay {
                     if case .unmatch = kind {
                         Circle().strokeBorder(.coral, lineWidth: 3)
@@ -47,14 +45,6 @@ struct DeckActionButton: View {
         switch kind {
         case .plain(let color): color
         case .unmatch: .coral
-        case .match: .brandWhite
-        }
-    }
-
-    private var fill: Color {
-        switch kind {
-        case .match: .brandTeal
-        case .plain, .unmatch: .brandWhite
         }
     }
 }
@@ -78,7 +68,6 @@ private struct DeckButtonStyle: ButtonStyle {
         DeckActionButton(systemImage: "xmark", accessibilityLabel: "Unmatch", kind: .unmatch, diameter: 68) {}
         DeckActionButton(systemImage: "plus.square", accessibilityLabel: "Add to album", kind: .plain(.plum), diameter: 48) {}
         DeckActionButton(systemImage: "heart", accessibilityLabel: "Heart", kind: .plain(.rose), diameter: 48) {}
-        DeckActionButton(systemImage: "checkmark", accessibilityLabel: "Match", kind: .match, diameter: 68) {}
     }
     .padding()
     .background(.cream)

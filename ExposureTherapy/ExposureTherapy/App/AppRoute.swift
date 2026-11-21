@@ -8,8 +8,8 @@
 import SwiftUI
 
 /// Which photos the Swipe deck serves.
-enum DeckMode: Hashable {
-    /// The next `dailyGoal` unreviewed photos, across months.
+nonisolated enum DeckMode: Hashable, Sendable {
+    /// The next `dailyGoal` unreviewed photos, within one month.
     case daily
     /// Every unreviewed photo in one month.
     case month(MonthKey)

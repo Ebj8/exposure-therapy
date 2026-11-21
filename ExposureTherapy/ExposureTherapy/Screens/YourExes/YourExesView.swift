@@ -52,7 +52,7 @@ struct YourExesView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task {
             model.load(context: modelContext)
-            library.prefetchCards(model.exes.map(\.id), targetSize: thumbnailSize)
+            library.prefetchThumbnails(model.exes.map(\.id), targetSize: thumbnailSize)
         }
         .sensoryFeedback(.success, trigger: didBreakUp)
         .alert("Couldn't delete photos", isPresented: $didFail) {

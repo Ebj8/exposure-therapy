@@ -1,10 +1,10 @@
 # Exposure Therapy – v1 Build Spec
 
-Nov 20, 2026 · @Eli
+Nov 20, 2026 · @Eli · Updated Nov 21, 2026: the Swipe deck is now a gallery (browse sideways, swipe up to break up), replacing the original right/left card swipes.
 
 ## Overview
 
-Exposure Therapy is a personal iPhone app for culling the camera roll one photo at a time with dating-app swipes: right to keep (a match), left to delete (an unmatch). v1 is for your own phone only, with no App Store work. Design reference: [Exposure Therapy – App Mockups](https://claude.ai/artifact/Mi36rrZw3suPjjcyheqKVE).
+Exposure Therapy is a personal iPhone app for culling the camera roll a month at a time. You browse each month like a photo gallery and swipe up to break up with the photos you don't want; everything you swipe past is kept. v1 is for your own phone only, with no App Store work. Design reference: [Exposure Therapy – App Mockups](https://claude.ai/artifact/Mi36rrZw3suPjjcyheqKVE).
 
 **Tech stack**
 
@@ -18,7 +18,7 @@ Exposure Therapy is a personal iPhone app for culling the camera roll one photo 
 
 - Four screens: Home, Swipe deck, Your exes, Session complete, plus a plain Settings screen.
 - Two ways in: a daily session (50 photos by default) and browsing by month.
-- Keep, unmatch, heart (Favorite), add to album, and undo.
+- Keep (by swiping past), break up, heart (Favorite), add to album, and undo.
 - Deletes batched at the end of each session, behind one Breakup button.
 - Stats: streak, storage freed, % of library reviewed, month status. Daily reminder.
 
@@ -41,9 +41,9 @@ Put every color below in the asset catalog as a named color, and use the names i
 | plumRaised | #3A2531 | Stat tiles on the Session complete screen |
 | muted | #6E5A64 | Secondary text, chevrons |
 | line | #F3DAD3 | Progress tracks, card borders |
-| teal | #0B6E6E | Keep / MATCH stamp, done months, "Back together" badge |
+| teal | #0B6E6E | "Reviewed" badge, done months, "Back together" badge |
 | tealLight | #DDF1EF | Done badge backgrounds |
-| coral | #D9442B | Unmatch button and UNMATCH stamp, delete badges |
+| coral | #D9442B | Discard button and UNMATCH stamp, delete badges |
 | white | #FFFFFF | Cards, buttons on cream |
 
 **Type**
@@ -55,7 +55,7 @@ Put every color below in the asset catalog as a named color, and use the names i
 **Shape and spacing**
 
 - Screen padding 20 pt; 10–18 pt gaps between blocks.
-- Corner radius: stat tiles and month tiles 14–18 pt, cards 20–26 pt, swipe card 30 pt. Buttons are pills (fully rounded).
+- Corner radius: stat tiles and month tiles 14–18 pt, cards 20–26 pt, Swipe deck photo 30 pt. Buttons are pills (fully rounded).
 - Minimum tap target 44 × 44 pt. Icons are SF Symbols, stroked, never emoji.
 
 **App icon (Pinned Keeper)**
@@ -94,26 +94,28 @@ Four screens make one loop: Home → Swipe deck → Your exes → Session comple
      - In progress: white tile with a 2 pt rose border; a blush fill rises from the bottom to match the percent, with "{n}%" under the label.
      - Not started: white tile, muted label.
      - No photos that month: tile at 40% opacity, not tappable.
-   - Opens on the year of the month in progress. Tapping a month opens the Swipe deck for that month.
+   - Opens on the year of the month in progress. Tapping a month opens the Swipe deck for that month; tapping a done month opens it again to re-review.
    - No legend under the grid.
 
 ### 2. Swipe deck
 
-1. **Top bar:** a round back button; in the center "{Month Year}" with "{position} of {total} today" (daily mode) or "{position} of {total}" (month mode); a plum "Done" pill on the right that opens Your exes.
+A gallery of one month's photos (or a daily session, which also stays within one month).
+
+1. **Top bar:** a round back button; in the center "{Month Year}" with "{position} of {total}" (month mode) or "{decided} of {goal} today" (daily mode); a plum "Done" pill on the right that goes to review.
 2. A thin rose progress bar for the session.
-3. **Card stack:**
-   - The current photo fills a card with a 30 pt radius and a soft shadow.
-   - The next photo peeks out behind it, rotated 3°.
+3. **Gallery:**
+   - Every photo of the month, oldest first, opening on the first one without a decision. You can swipe back to photos you've already decided.
+   - Exes are not shown: breaking up removes a photo from the gallery. Undo, or a rescue on Your exes, puts it back in its place.
+   - Each photo is shown at its original aspect ratio, as large as fits, with a 30 pt radius and a soft shadow. Nothing is cropped.
+   - The previous and next photos peek in at the edges.
    - Two dark translucent chips along the bottom: date and time ("Jun 14, 2019 · 8:42 PM") and file size ("2.4 MB").
-4. **Hint line:** "Right to keep · left to unmatch · double-tap to heart". Hide it after the first 10 decisions.
-5. **Button row,** left to right:
-   - Undo (48 pt).
-   - Unmatch ✕ (68 pt, white with a coral border).
-   - Add to album (48 pt).
-   - Heart (48 pt).
-   - Match ✓ (68 pt, teal fill).
-6. **Exes chip:** a blush pill, "✕ {n} exes this session". Tapping it opens Your exes.
-7. When the queue runs out, go to Your exes automatically.
+   - Kept photos show a teal "Reviewed" badge at the top.
+   - While the deck or a photo loads (including iCloud downloads), show a shimmering skeleton. If a photo can't load, show "Couldn't load this photo" with a "Try again" button.
+4. **Filmstrip:** a row of 7 square thumbnails under the photo: the 3 photos before and after the current one, taken from the gallery (so exes are left out), with the current one centered, larger, with a rose border. Slots past the start or end of the month stay empty. Kept photos get a small teal ✓. Tapping a thumbnail jumps to that photo.
+5. **Hint line:** "Swipe up to break up · swipe to keep". Hide it after the first 10 decisions.
+6. **Button row:** Undo (48 pt) on the left; a group of three centered on the screen, with a gap before it: Add to album (48 pt), Discard ✕ (68 pt, white with a coral border), Heart (48 pt).
+7. **Exes chip:** a blush pill, "✕ {n} exes this session". Tapping it opens Your exes; disabled at zero.
+8. **Going to review:** swiping forward past the month's last photo, deciding the last photo, deciding every photo, or tapping Done goes to Your exes (or Session complete with zero exes). If nothing was decided this visit (just browsing), go back Home instead.
 
 ### 3. Your exes
 
@@ -123,7 +125,7 @@ Four screens make one loop: Home → Swipe deck → Your exes → Session comple
    - Tapped (rescued): full brightness, a 3 pt teal border and a "Back together" label. Tapping again un-rescues it.
 3. **Warning card** (white, line-colored border, warning icon): "**This is goodbye.** {count} photos will move to Recently Deleted and disappear for good after 30 days." The count updates live as photos are rescued.
 4. **"Breakup" button:** full-width rose pill with a broken-heart icon. It runs the delete (section 5); on success it goes to Session complete.
-5. Text link: "Not yet, keep swiping".
+5. Text link: "Not yet, keep swiping". It returns to the gallery on the last photo that isn't an ex.
 6. With zero exes, skip this screen and go straight to Session complete.
 
 ### 4. Session complete
@@ -137,7 +139,7 @@ Four screens make one loop: Home → Swipe deck → Your exes → Session comple
    - "{n} days" streak, in pink; add "new best" when it's a record.
 4. **Teal banner,** only when this session finished a month: "{Month Year} is done" and "Library now {percent}% reviewed".
 5. **Reminder row:** "Remind me tomorrow" and "8:00 PM · keep the streak alive", with a toggle bound to the reminder setting.
-6. **Buttons:** "Back home" (white pill) and "Keep going: {next month}" (outline pill) to start the next unfinished month.
+6. **Buttons:** "Back home" (white pill) and "Keep going: {month}" (outline pill). It offers this session's month if it isn't finished yet (you tapped Done partway), otherwise the next unfinished month.
 
 ### Settings (no mockup; keep it a plain list)
 
@@ -151,32 +153,37 @@ Every gesture also has a button, so the app is usable without swiping. Nothing i
 
 | Input | Decision | What changes in Apple Photos |
 | --- | --- | --- |
-| Swipe right, or ✓ | Keep (match) | Nothing |
-| Swipe left, or ✕ | Unmatch | Nothing yet; the photo joins this session's exes |
-| Double-tap the card, or the heart button | Heart, which also keeps | Marked as a Favorite |
-| Album button | Keep and file | Added to the chosen album |
-| Undo | Reverses the last decision | Removes the Favorite or album add if that decision made it |
+| Swipe left or right off an undecided photo | Keep, and show the next or previous photo | Nothing |
+| Swipe left or right on a decided photo | Browse only; the decision stays | Nothing |
+| Swipe up, or ✕ | Break up: the photo leaves the gallery and joins this session's exes | Nothing yet |
+| Double-tap the photo, or the heart button | Heart, which also keeps, then show the next photo | Marked as a Favorite |
+| Album button | Keep and file, then show the next photo | Added to the chosen album |
+| Undo | Reverses the last decision or change of mind | Removes the Favorite or album add if that decision made it |
 | Tap a tile in Your exes | Rescue / un-rescue | Nothing |
 | Breakup | Deletes all un-rescued exes | Moved to Recently Deleted after iOS confirms |
 
 **Swipe feel**
 
-- The card follows the finger and rotates up to 12° in the direction of the drag.
-- A teal "MATCH" stamp (top-left, tilted −14°) fades in when dragging right. A coral "UNMATCH" stamp (top-right, tilted 14°) fades in when dragging left. Opacity follows drag distance.
-- Commit when the card passes 120 pt or the flick is fast; it flies off-screen and the next card scales up into place. Otherwise it springs back.
-- Buttons play the same fly-off animation.
-- Double-tap shows a rose heart that pops and fades over the photo, then the card flies right.
+- A drag locks to sideways (browse) or up (break up) within the first few points.
+- Sideways: the gallery follows the finger and pages at 70 pt or a fast flick, rubber-banding at the first and last photo.
+- Up: the photo follows the finger and a coral "UNMATCH" stamp (top-right, tilted 14°) fades in with the distance. Past 120 pt or a fast flick, the photo flies off the top and the next photo slides into its place; otherwise it springs back.
+- The ✕ button plays the same fly-off.
+- Double-tap shows a rose heart that pops and fades over the photo, then the next photo slides in.
+
+**Earlier decisions**
+
+- Photos decided in an earlier session can be changed too: breaking up with an old keep (or keeping an old ex) moves that decision into the current session. Undo hands it back. Earlier sessions' summaries keep what happened then.
 
 **Album picker**
 
 - A half-height sheet listing your albums (newest first) with a "New album…" row at the top.
-- Choosing an album adds the photo, closes the sheet and moves to the next card.
+- Choosing an album adds the photo, closes the sheet and moves to the next photo.
 - Remember the last album used and pin it to the top of the list.
 
 **Undo**
 
-- Undo works back through every decision in the current session.
-- The card slides back in from the side it left.
+- Undo works back through every decision and change of mind in the current session, including ones made before a relaunch.
+- The gallery moves to the photo it affected; an undone break-up puts the photo back in its place.
 
 **Haptics**
 
@@ -200,15 +207,19 @@ Apple Photos is the source of truth for the photos. SwiftData stores only your d
 - Fetch images only (`PHAsset.fetchAssets(with: .image, …)`), sorted by `creationDate`, oldest first.
 - Group photos by year and month of `creationDate` in the phone's calendar. Photos with no date go in a final "Undated" bucket.
 - Load images with `PHCachingImageManager`:
-  - Prefetch the next 3 cards at screen size and grid thumbnails at 200 pt.
-  - Set `isNetworkAccessAllowed = true` so iCloud-only photos download; show a spinner on the card while they do.
+  - Photos are requested aspect-fit at their display size; grid and filmstrip thumbnails aspect-fill at 200 pt.
+  - Prefetch the previous photo and the next 3, and Your exes thumbnails.
+  - Set `isNetworkAccessAllowed = true` so iCloud-only photos download; show the skeleton while they do.
+  - Never wait forever: time out after 8 s, retry once with a fresh image manager and 30 s, then show "Try again".
 - Observe `PHPhotoLibraryChangeObserver` and refresh counts when the library changes.
+- After 10+ minutes in the background, or when PhotoKit reports the library unavailable (`PHPhotoLibraryAvailabilityObserver`), swap in a fresh image manager and re-read the library.
+- Opening a deck must not stall the transition: the screen appears at once with the skeleton, and the queue is built off the main thread.
 
 **SwiftData models**
 
 | Model | Fields | Notes |
 | --- | --- | --- |
-| `PhotoDecision` | `assetID` (unique), `decision` (keep, heart, album, unmatch), `decidedAt`, `sessionID` | One row per reviewed photo. An unmatch stays "pending" until its Breakup succeeds |
+| `PhotoDecision` | `assetID` (unique), `decision` (keep, heart, album, unmatch), `decidedAt`, `sessionID`, `madeFavorite`, `addedToAlbumID`? | One row per reviewed photo. An unmatch stays "pending" until its Breakup succeeds. `madeFavorite` and `addedToAlbumID` record Photos changes the decision made, so undo can reverse them |
 | `DeletedPhoto` | `assetID`, `bytes`, `deletedAt`, `monthKey` | Kept after deletion so stats survive the photo being gone |
 | `Session` | `id`, `mode` (daily or month), `monthKey`?, `startedAt`, `endedAt`?, `keptCount`, `deletedCount`, `bytesFreed` | A session ends at a Breakup, or at Done with zero exes |
 
@@ -217,8 +228,8 @@ Apple Photos is the source of truth for the photos. SwiftData stores only your d
 
 **Queues**
 
-- Daily session: the next `dailyGoal` unreviewed photos, starting in the oldest month that isn't done and continuing into later months.
-- Month mode: every unreviewed photo in that month, in date order.
+- Daily session: up to `dailyGoal` unreviewed photos from the oldest month with photos left. A session stays within one month, so it ends with its month; the next session picks up in the following month. Undated photos come last. "Today" counts decisions in daily sessions started today; once the goal is met, "Keep going anyway" serves another batch.
+- Month mode: every unreviewed photo in that month, in date order, browsable alongside the month's already-decided photos.
 - A photo is reviewed once it has a keep, heart or album decision, or has been deleted.
 
 **Deletion (Breakup)**
@@ -244,7 +255,7 @@ Every stat is computed from the SwiftData records, so nothing is double-counted.
 **Daily reminder**
 
 - Ask for notification permission the first time the reminder toggle is turned on, not at launch.
-- When on, schedule a repeating daily notification at `reminderTime` with `UNCalendarNotificationTrigger`.
+- When on, schedule one `UNCalendarNotificationTrigger` notification per day at `reminderTime` for the next 14 days (a single repeating trigger can't skip a day or rotate its text). Refresh them when the app opens or goes to the background, and when settings change.
 - If today's session is finished before reminder time, skip today's notification and keep the following days.
 - Rotate the notification text:
   - "{n} photos are waiting to hear back."
@@ -254,6 +265,8 @@ Every stat is computed from the SwiftData records, so nothing is double-counted.
 - Tapping the notification opens the app on Home.
 
 ## Build order
+
+Milestones 1–9 are done. After them, the Swipe deck was reworked into the gallery described above (browse sideways, swipe up to break up, daily sessions within one month); the milestone notes below describe the original card design as it was built.
 
 Build in nine milestones, one per Claude conversation. Each ends with something you can run on your phone. Commit to Git after each one.
 
@@ -328,7 +341,7 @@ Meet the "Done when" line exactly. Don't start the next milestone.
 
 **Fixing things**
 
-- Point at one thing and quote the spec: "The MATCH stamp should be tilted −14° and teal per SPEC.md; right now it's flat and black. Fix only that."
+- Point at one thing and quote the spec: "The UNMATCH stamp should be tilted 14° and coral per SPEC.md; right now it's flat and black. Fix only that."
 - For a build error, paste the whole error message and ask for the smallest fix.
 - If Claude drifts off the design, say "Compare the Home screen to SPEC.md section 1 line by line and list every difference before changing anything."
 

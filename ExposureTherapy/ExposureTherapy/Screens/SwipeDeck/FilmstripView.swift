@@ -3,7 +3,7 @@
 //  ExposureTherapy
 //
 //  A row of the photos taken just before and after the one on the card,
-//  so you can tell the best shot of a burst. Tap one to peek at it larger.
+//  so you can tell the best shot of a burst. Tapping one jumps to it.
 //
 
 import SwiftUI
@@ -74,6 +74,21 @@ struct FilmstripView: View {
     }
 }
 
+/// The filmstrip's shape while the deck loads.
+struct FilmstripPlaceholder: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<7, id: \.self) { slot in
+                let side: CGFloat = slot == 3 ? 50 : 40
+                SkeletonView(cornerRadius: 8)
+                    .frame(width: side, height: side)
+            }
+        }
+        .frame(height: 50)
+        .accessibilityHidden(true)
+    }
+}
+
 private struct FilmstripThumb: View {
     let assetID: String
     let status: SwipeDeckModel.NeighborStatus
@@ -82,19 +97,29 @@ private struct FilmstripThumb: View {
 
     @Environment(PhotoLibrary.self) private var library
     @State private var image: UIImage?
+    @State private var didFail = false
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
     }
 
     var body: some View {
-        Color.line
+        Color.clear
             .frame(width: side, height: side)
             .overlay {
                 if let image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else if didFail {
+                    Color.line
+                        .overlay {
+                            Image(systemName: "photo")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.muted)
+                        }
+                } else {
+                    SkeletonView()
                 }
             }
             .overlay {
@@ -113,7 +138,9 @@ private struct FilmstripThumb: View {
                     .offset(x: 4, y: -4)
             }
             .task(id: assetID) {
+                didFail = false
                 image = await library.thumbnail(for: assetID, targetSize: targetSize)
+                didFail = image == nil
             }
     }
 

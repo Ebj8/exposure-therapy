@@ -22,6 +22,10 @@ final class PhotoLibrary {
     @ObservationIgnored private var changeObserver: LibraryChangeObserver?
     @ObservationIgnored private var isReloading = false
     @ObservationIgnored private var needsAnotherReload = false
+    /// When the app went to the background, to spot long absences.
+    @ObservationIgnored private var backgroundedAt: Date?
+    /// After this long in the background, refresh PhotoKit connections.
+    private static let longAbsence: TimeInterval = 10 * 60
     /// Previews use sample data and never touch PhotoKit.
     @ObservationIgnored private let isPreview: Bool
 
@@ -55,13 +59,13 @@ final class PhotoLibrary {
     /// Prefetches upcoming cards at `targetSize` pixels.
     func prefetchCards(_ assetIDs: [String], targetSize: CGSize) {
         guard !isPreview else { return }
-        imageLoader.startCaching(assetIDs, targetSize: targetSize)
+        imageLoader.startCaching(assetIDs, targetSize: targetSize, contentMode: .aspectFit)
     }
 
-    /// Releases prefetched cards that are no longer needed.
-    func stopPrefetchingCards(_ assetIDs: [String], targetSize: CGSize) {
+    /// Prefetches square grid thumbnails at `targetSize` pixels.
+    func prefetchThumbnails(_ assetIDs: [String], targetSize: CGSize) {
         guard !isPreview else { return }
-        imageLoader.stopCaching(assetIDs, targetSize: targetSize)
+        imageLoader.startCaching(assetIDs, targetSize: targetSize, contentMode: .aspectFill)
     }
 
     /// Loads a grid thumbnail at `targetSize` pixels.
@@ -142,13 +146,39 @@ final class PhotoLibrary {
     /// Loads the library and starts watching it for changes, once access is granted.
     func start() async {
         guard !isPreview, hasAccess, changeObserver == nil else { return }
-        let observer = LibraryChangeObserver { [weak self] in
-            Task { @MainActor in
-                await self?.reload()
+        // The loader is thread-safe, so the availability callback (on a
+        // background queue) can reset it directly.
+        let loader = imageLoader
+        let observer = LibraryChangeObserver(
+            onChange: { [weak self] in
+                Task { @MainActor in
+                    await self?.reload()
+                }
+            },
+            onUnavailable: {
+                loader.reset(reason: "photo library became unavailable")
             }
-        }
-        PHPhotoLibrary.shared().register(observer)
+        )
+        PHPhotoLibrary.shared().register(observer as PHPhotoLibraryChangeObserver)
+        PHPhotoLibrary.shared().register(observer as PHPhotoLibraryAvailabilityObserver)
         changeObserver = observer
+        await reload()
+    }
+
+    // MARK: App lifecycle
+
+    func appDidEnterBackground() {
+        backgroundedAt = .now
+    }
+
+    /// After a long time in the background, PhotoKit may have dropped the
+    /// app's connection, leaving image requests unanswered (an endless
+    /// skeleton). Start fresh: a new image manager and a re-read library.
+    func appDidBecomeActive() async {
+        guard let backgroundedAt else { return }
+        self.backgroundedAt = nil
+        guard !isPreview, hasAccess, Date.now.timeIntervalSince(backgroundedAt) > Self.longAbsence else { return }
+        imageLoader.reset(reason: "back after a long time in the background")
         await reload()
     }
 
@@ -172,15 +202,23 @@ final class PhotoLibrary {
     }
 }
 
-/// Forwards PhotoKit change notifications, which arrive on a background queue.
-nonisolated private final class LibraryChangeObserver: NSObject, PHPhotoLibraryChangeObserver, Sendable {
+/// Forwards PhotoKit change and availability notifications, which arrive
+/// on a background queue.
+nonisolated private final class LibraryChangeObserver: NSObject, PHPhotoLibraryChangeObserver,
+    PHPhotoLibraryAvailabilityObserver, Sendable {
     private let onChange: @Sendable () -> Void
+    private let onUnavailable: @Sendable () -> Void
 
-    init(onChange: @escaping @Sendable () -> Void) {
+    init(onChange: @escaping @Sendable () -> Void, onUnavailable: @escaping @Sendable () -> Void) {
         self.onChange = onChange
+        self.onUnavailable = onUnavailable
     }
 
     func photoLibraryDidChange(_ changeInstance: PHChange) {
         onChange()
+    }
+
+    func photoLibraryDidBecomeUnavailable(_ photoLibrary: PHPhotoLibrary) {
+        onUnavailable()
     }
 }

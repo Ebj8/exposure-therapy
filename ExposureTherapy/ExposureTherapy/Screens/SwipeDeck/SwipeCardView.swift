@@ -12,31 +12,81 @@ struct SwipeCardView: View {
     let assetID: String
     /// Image size to request, in pixels.
     let targetSize: CGSize
-    /// 0 to 1; follows drag distance.
-    var matchOpacity: Double = 0
+    /// 0 to 1; follows how far the photo is dragged up.
     var unmatchOpacity: Double = 0
 
     @Environment(PhotoLibrary.self) private var library
     @State private var photo: CardPhoto?
     @State private var didFail = false
+    /// Bumped by "Try again" to load the photo once more.
+    @State private var attempt = 0
+
+    /// What a load depends on: the size, and which try this is.
+    private struct LoadKey: Equatable {
+        let size: CGSize
+        let attempt: Int
+    }
 
     private let shape = RoundedRectangle(cornerRadius: Radius.swipeCard, style: .continuous)
 
+    /// The photo's width ÷ height once loaded, so the card takes its shape.
+    private var aspectRatio: CGFloat? {
+        guard let size = photo?.image.size, size.height > 0 else { return nil }
+        return size.width / size.height
+    }
+
     var body: some View {
+        // Sized to the photo's own shape (as large as fits) so nothing is
+        // cropped; the skeleton fills the whole space until it loads.
+        Group {
+            if let aspectRatio {
+                card.aspectRatio(aspectRatio, contentMode: .fit)
+            } else {
+                card
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // The whole slot stays draggable, even beside a wide photo.
+        .contentShape(Rectangle())
+        .task(id: LoadKey(size: targetSize, attempt: attempt)) {
+            guard targetSize.width > 0, photo == nil else { return }
+            let loaded = await library.cardPhoto(for: assetID, targetSize: targetSize)
+            withAnimation(.easeOut(duration: 0.2)) {
+                photo = loaded
+                didFail = loaded == nil
+            }
+        }
+        .accessibilityElement(children: didFail ? .contain : .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var card: some View {
         Color.line
             .overlay {
                 if let photo {
+                    // The card matches the photo's shape, so filling it
+                    // crops nothing.
                     Image(uiImage: photo.image)
                         .resizable()
                         .scaledToFill()
                 } else if didFail {
-                    Label("Couldn't load this photo", systemImage: "exclamationmark.triangle")
-                        .font(.inter(15, .semibold))
-                        .foregroundStyle(.muted)
+                    VStack(spacing: 12) {
+                        Label("Couldn't load this photo", systemImage: "exclamationmark.triangle")
+                            .font(.inter(15, .semibold))
+                            .foregroundStyle(.muted)
+                        Button("Try again") {
+                            didFail = false
+                            attempt += 1
+                        }
+                        .font(.inter(15, .bold))
+                        .foregroundStyle(.roseDark)
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: Size.minTapTarget)
+                        .background(.blush, in: Capsule())
+                        .buttonStyle(.plain)
+                    }
                 } else {
-                    ProgressView()
-                        .tint(.rose)
-                        .controlSize(.large)
+                    SkeletonView()
                 }
             }
             .clipShape(shape)
@@ -45,25 +95,12 @@ struct SwipeCardView: View {
                     chips(for: photo)
                 }
             }
-            .overlay(alignment: .topLeading) {
-                StampView(text: "MATCH", color: .brandTeal, angle: -14)
-                    .opacity(matchOpacity)
-                    .padding(28)
-            }
             .overlay(alignment: .topTrailing) {
                 StampView(text: "UNMATCH", color: .coral, angle: 14)
                     .opacity(unmatchOpacity)
                     .padding(28)
             }
-            .contentShape(shape)
             .shadow(color: .plum.opacity(0.18), radius: 18, y: 10)
-            .task(id: targetSize) {
-                guard targetSize.width > 0, photo == nil else { return }
-                photo = await library.cardPhoto(for: assetID, targetSize: targetSize)
-                didFail = photo == nil
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibilityDescription)
     }
 
     private func chips(for photo: CardPhoto) -> some View {
@@ -104,13 +141,15 @@ private struct ChipView: View {
             .font(.inter(13, .semibold, relativeTo: .caption))
             .foregroundStyle(.brandWhite)
             .lineLimit(1)
+            // Narrow portrait cards: shrink a little before truncating.
+            .minimumScaleFactor(0.75)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background(.plum.opacity(0.8), in: Capsule())
     }
 }
 
-/// The tilted MATCH / UNMATCH stamp.
+/// The tilted UNMATCH stamp.
 private struct StampView: View {
     let text: String
     let color: Color
@@ -134,7 +173,7 @@ private struct StampView: View {
 
 #Preview {
     VStack(spacing: 20) {
-        SwipeCardView(assetID: "preview-2019-06-12", targetSize: CGSize(width: 600, height: 800), matchOpacity: 1)
+        SwipeCardView(assetID: "preview-2019-06-12", targetSize: CGSize(width: 600, height: 800))
         SwipeCardView(assetID: "preview-2019-06-13", targetSize: CGSize(width: 600, height: 800), unmatchOpacity: 0.6)
     }
     .padding(20)

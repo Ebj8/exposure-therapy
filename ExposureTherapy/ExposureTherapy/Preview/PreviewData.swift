@@ -88,14 +88,16 @@ enum PreviewData {
         }
 
         let hue = CGFloat(number * 37 % 360) / 360
-        let size = CGSize(width: 600, height: 800)
+        // Mostly portrait, with a wide landscape every third photo, so
+        // Previews show cards taking each photo's own shape.
+        let size = number % 3 == 0 ? CGSize(width: 900, height: 560) : CGSize(width: 600, height: 800)
         let image = UIGraphicsImageRenderer(size: size).image { context in
             UIColor(hue: hue, saturation: 0.3, brightness: 0.96, alpha: 1).setFill()
             context.fill(CGRect(origin: .zero, size: size))
             UIColor(hue: 0.13, saturation: 0.3, brightness: 1, alpha: 1).setFill()
-            context.cgContext.fillEllipse(in: CGRect(x: 360, y: 160, width: 140, height: 140))
+            context.cgContext.fillEllipse(in: CGRect(x: size.width * 0.6, y: size.height * 0.2, width: 140, height: 140))
             UIColor(hue: hue, saturation: 0.45, brightness: 0.55, alpha: 1).setFill()
-            context.fill(CGRect(x: 0, y: 520, width: size.width, height: 280))
+            context.fill(CGRect(x: 0, y: size.height * 0.65, width: size.width, height: size.height * 0.35))
         }
         return CardPhoto(image: image, creationDate: date, fileSize: 2_400_000 + Int64(number) * 37_000)
     }

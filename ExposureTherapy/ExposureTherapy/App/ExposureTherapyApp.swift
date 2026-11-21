@@ -56,9 +56,18 @@ struct RootView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Photo access may have changed in the Settings app.
-            if phase == .active {
-                Task { await library.refreshAuthorization() }
+            switch phase {
+            case .background:
+                library.appDidEnterBackground()
+            case .active:
+                Task {
+                    // After a long absence, refresh PhotoKit before it's needed.
+                    await library.appDidBecomeActive()
+                    // Photo access may have changed in the Settings app.
+                    await library.refreshAuthorization()
+                }
+            default:
+                break
             }
         }
     }
@@ -69,7 +78,7 @@ struct RootView: View {
                 .navigationDestination(for: AppRoute.self) { route in
                     Group {
                         switch route {
-                        case .swipeDeck(let mode): SwipeDeckView(mode: mode)
+                        case .swipeDeck(let mode): GalleryDeckView(mode: mode)
                         case .yourExes(let sessionID): YourExesView(sessionID: sessionID)
                         case .sessionComplete(let sessionID): SessionCompleteView(sessionID: sessionID)
                         case .settings: SettingsView()
