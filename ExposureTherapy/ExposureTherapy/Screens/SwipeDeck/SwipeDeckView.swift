@@ -282,15 +282,25 @@ struct SwipeDeckView: View {
         }
     }
 
+    /// How long a card takes to fly off, and to slide back in on undo.
+    private let flyOffDuration: Duration = .milliseconds(220)
+    private let slideBackDuration: Duration = .milliseconds(400)
+
     /// Flies the top card off-screen, then runs `record` (which advances the
     /// deck) while the next card springs into place.
+    ///
+    /// The follow-up runs on a timer rather than in `withAnimation`'s
+    /// completion: SwiftUI can skip that completion when other updates land
+    /// mid-animation, which left the deck locked with `isFlying` stuck on.
     private func flyOff(toRight: Bool, then record: @escaping () -> Void) {
         isFlying = true
         let flyOut = CGSize(width: (toRight ? 1 : -1) * offScreenDistance, height: dragOffset.height)
 
         withAnimation(.easeIn(duration: 0.22)) {
             dragOffset = flyOut
-        } completion: {
+        }
+        Task {
+            try? await Task.sleep(for: flyOffDuration)
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 record()
                 dragOffset = .zero
@@ -375,10 +385,13 @@ struct SwipeDeckView: View {
             insertionOffset = (leftToRight ? 1 : -1) * offScreenDistance
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 model.undo(context: modelContext)
-            } completion: {
-                insertionOffset = 0
-                isFlying = false
+                // Clear any leftover drag so the returned card sits centered.
+                dragOffset = .zero
             }
+            // Unlock on a timer, not the animation completion (see flyOff).
+            try? await Task.sleep(for: slideBackDuration)
+            insertionOffset = 0
+            isFlying = false
         }
     }
 
