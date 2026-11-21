@@ -18,11 +18,21 @@ enum SettingsKey {
     static let bestStreak = "bestStreak"
     /// Decisions made so far, up to 10; the swipe hint hides after 10.
     static let hintDecisions = "hintDecisions"
+    /// "gallery" (browse sideways, swipe up to break up) or "cards" (right
+    /// to keep, left to unmatch). Trial setting.
+    static let deckStyle = "deckStyle"
 }
 
 enum SettingsDefault {
     static let dailyGoal = 50
+    static let deckStyle = DeckStyle.gallery.rawValue
     static let reminderTime = 20 * 60
+}
+
+/// The two ways to swipe through a deck.
+enum DeckStyle: String, CaseIterable {
+    case gallery
+    case cards
 }
 
 extension Int {

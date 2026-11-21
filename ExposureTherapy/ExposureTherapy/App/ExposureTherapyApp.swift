@@ -29,6 +29,7 @@ struct RootView: View {
     @Environment(PhotoLibrary.self) private var library
     @Environment(\.scenePhase) private var scenePhase
     @State private var router = Router()
+    @AppStorage(SettingsKey.deckStyle) private var deckStyle = SettingsDefault.deckStyle
 
     var body: some View {
         Group {
@@ -69,7 +70,12 @@ struct RootView: View {
                 .navigationDestination(for: AppRoute.self) { route in
                     Group {
                         switch route {
-                        case .swipeDeck(let mode): SwipeDeckView(mode: mode)
+                        case .swipeDeck(let mode):
+                            if deckStyle == DeckStyle.cards.rawValue {
+                                SwipeDeckView(mode: mode)
+                            } else {
+                                GalleryDeckView(mode: mode)
+                            }
                         case .yourExes(let sessionID): YourExesView(sessionID: sessionID)
                         case .sessionComplete(let sessionID): SessionCompleteView(sessionID: sessionID)
                         case .settings: SettingsView()

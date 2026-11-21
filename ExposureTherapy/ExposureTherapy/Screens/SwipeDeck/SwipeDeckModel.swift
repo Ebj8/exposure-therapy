@@ -26,6 +26,10 @@ final class SwipeDeckModel {
     /// This session's decisions, oldest first, for multi-step undo.
     private(set) var history: [PhotoDecision] = []
 
+    /// Gallery style: every decision or change of mind, newest last, so
+    /// undo can step back through them (including keep → ex changes).
+    private(set) var galleryActions: [GalleryAction] = []
+
     /// The open session, created on the first decision if there isn't one.
     @ObservationIgnored private var session: Session?
     /// Months of queued photos, for the daily deck's title.
@@ -140,6 +144,10 @@ final class SwipeDeckModel {
                 sortBy: [SortDescriptor(\.decidedAt)]
             )
             history = (try? context.fetch(descriptor)) ?? []
+        }
+        galleryActions = history.map {
+            GalleryAction(record: $0, previous: nil, previousMadeFavorite: false, previousAlbumID: nil,
+                          madeFavorite: $0.madeFavorite, addedToAlbumID: $0.addedToAlbumID)
         }
         let sessionIDs = Set(history.map(\.assetID))
         for record in allDecisions where !sessionIDs.contains(record.assetID) {
@@ -269,6 +277,132 @@ final class SwipeDeckModel {
         }
     }
 
+    // MARK: Gallery style
+
+    /// One gallery decision, with what it replaced so undo can restore it.
+    struct GalleryAction {
+        let record: PhotoDecision
+        /// nil when this action created the record.
+        let previous: Decision?
+        let previousMadeFavorite: Bool
+        let previousAlbumID: String?
+        /// Photos changes this action made, for undo to reverse.
+        let madeFavorite: Bool
+        let addedToAlbumID: String?
+    }
+
+    /// This session's decision for a photo, if any.
+    func decision(for assetID: String) -> Decision? {
+        history.last { $0.assetID == assetID }?.decision
+    }
+
+    /// Queue photos with a decision so far.
+    var decidedInQueue: Int {
+        let decided = Set(history.map(\.assetID))
+        return queue.filter(decided.contains).count
+    }
+
+    /// Every photo in the queue has a decision.
+    var isAllDecided: Bool {
+        isLoaded && !queue.isEmpty && decidedInQueue == queue.count
+    }
+
+    /// Share of the session decided, 0 to 1.
+    var galleryProgress: Double {
+        let total = dailyOffset + queue.count
+        return total == 0 ? 0 : Double(dailyOffset + decidedInQueue) / Double(total)
+    }
+
+    var canUndoGallery: Bool {
+        !galleryActions.isEmpty
+    }
+
+    /// Shows a page without deciding anything.
+    func moveTo(page: Int) {
+        position = min(max(page, 0), max(queue.count - 1, 0))
+    }
+
+    /// Records (or changes) the decision for a photo without moving pages.
+    func record(
+        _ decision: Decision,
+        for assetID: String,
+        madeFavorite: Bool = false,
+        addedToAlbumID: String? = nil,
+        context: ModelContext
+    ) {
+        let session = self.session ?? startSession(context: context)
+        if let existing = history.last(where: { $0.assetID == assetID }) {
+            guard existing.decision != decision else { return }
+            galleryActions.append(GalleryAction(
+                record: existing,
+                previous: existing.decision,
+                previousMadeFavorite: existing.madeFavorite,
+                previousAlbumID: existing.addedToAlbumID,
+                madeFavorite: madeFavorite,
+                addedToAlbumID: addedToAlbumID
+            ))
+            adjustKeptCount(session, from: existing.decision, to: decision)
+            existing.decision = decision
+            if madeFavorite { existing.madeFavorite = true }
+            if let addedToAlbumID { existing.addedToAlbumID = addedToAlbumID }
+        } else {
+            let record = PhotoDecision(
+                assetID: assetID,
+                decision: decision,
+                sessionID: session.id,
+                madeFavorite: madeFavorite,
+                addedToAlbumID: addedToAlbumID
+            )
+            context.insert(record)
+            history.append(record)
+            galleryActions.append(GalleryAction(
+                record: record, previous: nil, previousMadeFavorite: false, previousAlbumID: nil,
+                madeFavorite: madeFavorite, addedToAlbumID: addedToAlbumID
+            ))
+            if decision != .unmatch {
+                session.keptCount += 1
+            }
+        }
+        // Save right away so decisions survive the app being quit.
+        try? context.save()
+    }
+
+    /// Reverses the last gallery action. Returns the photo and any Photos
+    /// changes that action made, for the caller to reverse.
+    func undoGallery(context: ModelContext) -> (assetID: String, madeFavorite: Bool, addedToAlbumID: String?)? {
+        guard let action = galleryActions.popLast() else { return nil }
+        let record = action.record
+        let assetID = record.assetID
+
+        if let previous = action.previous {
+            if let session { adjustKeptCount(session, from: record.decision, to: previous) }
+            record.decision = previous
+            record.madeFavorite = action.previousMadeFavorite
+            record.addedToAlbumID = action.previousAlbumID
+        } else {
+            if record.decision != .unmatch, let session {
+                session.keptCount = max(session.keptCount - 1, 0)
+            }
+            history.removeAll { $0 === record }
+            context.delete(record)
+        }
+        try? context.save()
+
+        if !queue.contains(assetID) {
+            // Decided before a relaunch, so it isn't in this visit's queue.
+            queue.insert(assetID, at: min(position, queue.count))
+        }
+        return (assetID, action.madeFavorite, action.addedToAlbumID)
+    }
+
+    private func adjustKeptCount(_ session: Session, from old: Decision, to new: Decision) {
+        if old == .unmatch && new != .unmatch {
+            session.keptCount += 1
+        } else if old != .unmatch && new == .unmatch {
+            session.keptCount = max(session.keptCount - 1, 0)
+        }
+    }
+
     private func startSession(context: ModelContext) -> Session {
         let session: Session
         switch mode {
@@ -295,6 +429,7 @@ final class SwipeDeckModel {
             self.session = nil
             // Undo only reaches back through the current session.
             history = []
+            galleryActions = []
         }
         return .sessionComplete(sessionID: endedID)
     }
