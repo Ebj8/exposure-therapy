@@ -93,7 +93,7 @@ struct GalleryDeckView: View {
         .background(.cream)
         .toolbar(.hidden, for: .navigationBar)
         .task {
-            model.load(index: library.index, dailyGoal: dailyGoal, context: modelContext)
+            model.load(index: library.index, dailyGoal: dailyGoal, browseWholeMonth: true, context: modelContext)
             prefetchAround()
         }
         .onChange(of: model.position) {
@@ -141,7 +141,7 @@ struct GalleryDeckView: View {
                 Text(model.title)
                     .font(.bricolage(20, relativeTo: .headline))
                     .foregroundStyle(.plum)
-                if !model.queue.isEmpty {
+                if !model.pages.isEmpty {
                     Text(positionText)
                         .font(.inter(14, relativeTo: .subheadline))
                         .foregroundStyle(.muted)
@@ -167,10 +167,12 @@ struct GalleryDeckView: View {
     }
 
     private var positionText: String {
-        let page = model.position + 1
         switch model.mode {
-        case .daily: return "\(model.dailyOffset + page) of \(model.dailyOffset + model.queue.count) today"
-        case .month: return "\(page) of \(model.queue.count)"
+        case .daily:
+            // Today's count is decisions toward the goal, not the page.
+            return "\(model.dailyOffset + model.decidedInQueue) of \(model.dailyOffset + model.queue.count) today"
+        case .month:
+            return "\(model.position + 1) of \(model.pages.count)"
         }
     }
 
@@ -195,17 +197,17 @@ struct GalleryDeckView: View {
     private var visiblePages: [(assetID: String, offset: Int)] {
         // Check first: the queue is empty until the deck loads, and an empty
         // range here would crash.
-        guard !model.queue.isEmpty else { return [] }
+        guard !model.pages.isEmpty else { return [] }
         let lower = max(model.position - 1, 0)
-        let upper = min(model.position + 1, model.queue.count - 1)
+        let upper = min(model.position + 1, model.pages.count - 1)
         guard lower <= upper else { return [] }
-        return (lower...upper).map { (model.queue[$0], $0 - model.position) }
+        return (lower...upper).map { (model.pages[$0], $0 - model.position) }
     }
 
     private var pager: some View {
         GeometryReader { proxy in
             ZStack {
-                if model.isLoaded && model.queue.isEmpty {
+                if model.isLoaded && model.pages.isEmpty {
                     emptyState
                 }
 
@@ -262,13 +264,22 @@ struct GalleryDeckView: View {
             if let decision {
                 statusPill(for: decision)
                     .padding(.top, 16)
+            } else if model.earlierDecision(for: assetID) != nil {
+                Label("Reviewed before", systemImage: "lock.fill")
+                    .font(.inter(13, .bold))
+                    .foregroundStyle(.brandWhite)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.plum.opacity(0.85), in: Capsule())
+                    .padding(.top, 16)
             }
         }
         .frame(width: size.width, height: size.height)
         .offset(x: CGFloat(offset) * (size.width + pageGap) + horizontal, y: vertical)
         .opacity(assetID == hiddenID ? 0 : 1)
         .accessibilityHidden(!isCurrent)
-        .accessibilityValue(decision.map(accessibilityStatus) ?? "Not decided")
+        .accessibilityValue(decision.map(accessibilityStatus)
+            ?? (model.earlierDecision(for: assetID) != nil ? "Reviewed in an earlier session" : "Not decided"))
     }
 
     private func statusPill(for decision: Decision) -> some View {
@@ -304,8 +315,18 @@ struct GalleryDeckView: View {
 
     // MARK: Gestures
 
+    /// The current photo can still be decided or changed here.
+    private var isCurrentEditable: Bool {
+        model.currentID.map(model.isEditable) ?? false
+    }
+
+    private var canBreakUpCurrent: Bool {
+        guard let currentID = model.currentID else { return false }
+        return model.isEditable(currentID) && model.decision(for: currentID) != .unmatch
+    }
+
     private var isOnLastPage: Bool {
-        model.position >= model.queue.count - 1
+        model.position >= model.pages.count - 1
     }
 
     private var pagerGesture: some Gesture {
@@ -321,8 +342,8 @@ struct GalleryDeckView: View {
                     let atStart = model.position == 0 && translation.width > 0
                     let atEnd = isOnLastPage && translation.width < 0
                     if atStart || atEnd { translation.width *= 0.3 }
-                } else if model.decision(for: model.currentID ?? "") == .unmatch {
-                    // Already an ex: resist instead of breaking up again.
+                } else if !canBreakUpCurrent {
+                    // Already an ex, or reviewed before: resist instead.
                     translation.height *= 0.2
                 }
                 dragOffset = translation
@@ -344,8 +365,7 @@ struct GalleryDeckView: View {
                         springBack()
                     }
                 case .vertical:
-                    let canBreakUp = model.decision(for: model.currentID ?? "") != .unmatch
-                    if canBreakUp && (dy < -commitDistance || value.velocity.height < -flickVelocity) {
+                    if canBreakUpCurrent && (dy < -commitDistance || value.velocity.height < -flickVelocity) {
                         breakUpCurrent()
                     } else {
                         springBack()
@@ -381,7 +401,7 @@ struct GalleryDeckView: View {
             springBack()
             return
         }
-        if keepingCurrent && model.decision(for: currentID) == nil {
+        if keepingCurrent && model.isEditable(currentID) && model.decision(for: currentID) == nil {
             model.record(.keep, for: currentID, context: modelContext)
             noteDecision()
         }
@@ -397,7 +417,7 @@ struct GalleryDeckView: View {
     /// then go to review (Your exes, or Session complete with no exes).
     private func finishFromLastPhoto() {
         springBack()
-        if let currentID = model.currentID, model.decision(for: currentID) == nil {
+        if let currentID = model.currentID, model.isEditable(currentID), model.decision(for: currentID) == nil {
             model.record(.keep, for: currentID, context: modelContext)
             noteDecision()
         }
@@ -424,7 +444,7 @@ struct GalleryDeckView: View {
     /// Swipe up or ✕: the photo flies off the top, becomes an ex, and the
     /// next photo slides in.
     private func breakUpCurrent() {
-        guard !isAnimating, let assetID = model.currentID, model.decision(for: assetID) != .unmatch else { return }
+        guard !isAnimating, canBreakUpCurrent, let assetID = model.currentID else { return }
         isAnimating = true
         withAnimation(.easeIn(duration: 0.22)) {
             dragAxis = .vertical
@@ -458,14 +478,14 @@ struct GalleryDeckView: View {
 
     /// ✓: keeps the photo (or takes an ex back) and moves on.
     private func keepCurrent() {
-        guard !isAnimating, let assetID = model.currentID else { return }
+        guard !isAnimating, isCurrentEditable, let assetID = model.currentID else { return }
         model.record(.keep, for: assetID, context: modelContext)
         noteDecision()
         goForward(keepingCurrent: false)
     }
 
     private func heart() {
-        guard !isAnimating, let assetID = model.currentID else { return }
+        guard !isAnimating, isCurrentEditable, let assetID = model.currentID else { return }
         isAnimating = true
         withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
             isShowingHeart = true
@@ -490,7 +510,7 @@ struct GalleryDeckView: View {
     }
 
     private func addToAlbum(_ albumID: String) {
-        guard !isAnimating, let assetID = model.currentID else { return }
+        guard !isAnimating, isCurrentEditable, let assetID = model.currentID else { return }
         isPickingAlbum = false
         isAnimating = true
         Task {
@@ -526,7 +546,7 @@ struct GalleryDeckView: View {
                 await library.removeFromAlbum(assetID: undone.assetID, albumID: albumID)
             }
         }
-        if let page = model.queue.firstIndex(of: undone.assetID) {
+        if let page = model.pages.firstIndex(of: undone.assetID) {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                 model.moveTo(page: page)
                 dragOffset = .zero
@@ -538,7 +558,7 @@ struct GalleryDeckView: View {
     /// Filmstrip tap: jump to the photo if it's in this session, otherwise peek.
     private func selectFromFilmstrip(_ assetID: String) {
         guard !isAnimating else { return }
-        if let page = model.queue.firstIndex(of: assetID) {
+        if let page = model.pages.firstIndex(of: assetID) {
             lockInput(for: .milliseconds(300))
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                 model.moveTo(page: page)
@@ -556,11 +576,11 @@ struct GalleryDeckView: View {
     }
 
     private func prefetchAround() {
-        guard cardSize.width > 0, !model.queue.isEmpty else { return }
+        guard cardSize.width > 0, !model.pages.isEmpty else { return }
         let start = max(model.position - 1, 0)
-        let end = min(model.position + 3, model.queue.count - 1)
+        let end = min(model.position + 3, model.pages.count - 1)
         guard start <= end else { return }
-        library.prefetchCards(Array(model.queue[start...end]), targetSize: pixelSize)
+        library.prefetchCards(Array(model.pages[start...end]), targetSize: pixelSize)
     }
 
     // MARK: Buttons
@@ -576,17 +596,17 @@ struct GalleryDeckView: View {
             DeckActionButton(systemImage: "xmark", accessibilityLabel: "Break up", kind: .unmatch, diameter: 68) {
                 breakUpCurrent()
             }
-            .disabled(model.currentID == nil || currentDecision == .unmatch)
+            .disabled(!canBreakUpCurrent)
 
             DeckActionButton(systemImage: "plus.square", accessibilityLabel: "Add to album", kind: .plain(.plum), diameter: 48) {
                 isPickingAlbum = true
             }
-            .disabled(model.currentID == nil)
+            .disabled(!isCurrentEditable)
 
             DeckActionButton(systemImage: "heart", accessibilityLabel: "Heart", kind: .plain(.rose), diameter: 48) {
                 heart()
             }
-            .disabled(model.currentID == nil)
+            .disabled(!isCurrentEditable)
 
             DeckActionButton(
                 systemImage: "checkmark",
@@ -596,7 +616,7 @@ struct GalleryDeckView: View {
             ) {
                 keepCurrent()
             }
-            .disabled(model.currentID == nil)
+            .disabled(!isCurrentEditable)
         }
     }
 

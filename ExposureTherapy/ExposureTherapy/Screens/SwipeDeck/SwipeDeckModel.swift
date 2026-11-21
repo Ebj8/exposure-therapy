@@ -26,6 +26,11 @@ final class SwipeDeckModel {
     /// This session's decisions, oldest first, for multi-step undo.
     private(set) var history: [PhotoDecision] = []
 
+    /// Gallery style: every photo of the month to browse, decided or not.
+    /// `position` indexes this instead of `queue` when browsing.
+    private(set) var pages: [String] = []
+    private(set) var browsesWholeMonth = false
+
     /// Gallery style: every decision or change of mind, newest last, so
     /// undo can step back through them (including keep → ex changes).
     private(set) var galleryActions: [GalleryAction] = []
@@ -75,7 +80,8 @@ final class SwipeDeckModel {
     }
 
     var currentID: String? {
-        queue.indices.contains(position) ? queue[position] : nil
+        let list = browsesWholeMonth ? pages : queue
+        return list.indices.contains(position) ? list[position] : nil
     }
 
     var nextID: String? {
@@ -104,7 +110,10 @@ final class SwipeDeckModel {
 
     // MARK: Loading
 
-    func load(index: LibraryIndex, dailyGoal: Int, context: ModelContext) {
+    /// - Parameter browseWholeMonth: Gallery style. Pages are every photo of
+    ///   the month (so you can swipe back to ones already decided), opening on
+    ///   the first one still to decide. `queue` stays the photos to decide.
+    func load(index: LibraryIndex, dailyGoal: Int, browseWholeMonth: Bool = false, context: ModelContext) {
         guard !isLoaded else { return }
         self.index = index
 
@@ -149,6 +158,23 @@ final class SwipeDeckModel {
         let sessionIDs = Set(history.map(\.assetID))
         for record in allDecisions where !sessionIDs.contains(record.assetID) {
             earlierDecisions[record.assetID] = record.decision
+        }
+
+        if browseWholeMonth {
+            let month: MonthKey?
+            switch mode {
+            case .month(let key): month = key
+            case .daily: month = queue.first.flatMap { queueMonths[$0] }
+            }
+            // Undated photos have no month to browse, so just the queue.
+            pages = month.flatMap { index.months[$0] } ?? queue
+            if let month {
+                for assetID in pages where queueMonths[assetID] == nil {
+                    queueMonths[assetID] = month
+                }
+            }
+            browsesWholeMonth = true
+            position = queue.first.flatMap { pages.firstIndex(of: $0) } ?? 0
         }
         isLoaded = true
     }
@@ -319,7 +345,19 @@ final class SwipeDeckModel {
 
     /// Shows a page without deciding anything.
     func moveTo(page: Int) {
-        position = min(max(page, 0), max(queue.count - 1, 0))
+        let count = browsesWholeMonth ? pages.count : queue.count
+        position = min(max(page, 0), max(count - 1, 0))
+    }
+
+    /// A decision from an earlier session, shown but not changeable here.
+    func earlierDecision(for assetID: String) -> Decision? {
+        earlierDecisions[assetID]
+    }
+
+    /// Photos decided in an earlier session are view-only: changing them
+    /// would throw off that session's counts.
+    func isEditable(_ assetID: String) -> Bool {
+        decision(for: assetID) != nil || earlierDecisions[assetID] == nil
     }
 
     /// Records (or changes) the decision for a photo without moving pages.
