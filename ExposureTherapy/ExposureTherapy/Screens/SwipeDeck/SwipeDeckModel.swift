@@ -19,11 +19,18 @@ final class SwipeDeckModel {
     private(set) var position = 0
     private(set) var isLoaded = false
 
+    /// Daily mode: decisions already made today before this queue, so the
+    /// count reads "31 of 50 today" after a break.
+    private(set) var dailyOffset = 0
+
     /// This session's decisions, oldest first, for multi-step undo.
     private(set) var history: [PhotoDecision] = []
 
     /// The open session, created on the first decision if there isn't one.
     @ObservationIgnored private var session: Session?
+    /// Months of queued photos, for the daily deck's title.
+    @ObservationIgnored private var queueMonths: [String: MonthKey] = [:]
+    @ObservationIgnored private var index: LibraryIndex = .empty
 
     init(mode: DeckMode) {
         self.mode = mode
@@ -39,11 +46,25 @@ final class SwipeDeckModel {
         session?.id
     }
 
+    /// Month mode: the month. Daily mode: the top card's month, since the
+    /// queue runs across months.
     var title: String {
         switch mode {
-        case .daily: "Today's session"
-        case .month(let key): key.title
+        case .month(let key):
+            return key.title
+        case .daily:
+            guard let currentID else { return "Today's session" }
+            if let month = queueMonths[currentID] ?? month(of: currentID) {
+                return month.title
+            }
+            return "Undated"
         }
+    }
+
+    /// Looks up a photo's month in the library, for photos put back by undo
+    /// that weren't in this visit's queue.
+    private func month(of assetID: String) -> MonthKey? {
+        index.months.first { $0.value.contains(assetID) }?.key
     }
 
     var currentID: String? {
@@ -68,22 +89,36 @@ final class SwipeDeckModel {
         min(position + 1, queue.count)
     }
 
-    /// Share of the queue decided, 0 to 1.
+    /// Share of the session decided, 0 to 1.
     var progress: Double {
-        queue.isEmpty ? 0 : Double(position) / Double(queue.count)
+        let total = dailyOffset + queue.count
+        return total == 0 ? 0 : Double(dailyOffset + position) / Double(total)
     }
 
     // MARK: Loading
 
-    func load(index: LibraryIndex, context: ModelContext) {
+    func load(index: LibraryIndex, dailyGoal: Int, context: ModelContext) {
         guard !isLoaded else { return }
+        self.index = index
 
         // Skip anything already decided, including exes still waiting for a Breakup.
-        let decided = Set(((try? context.fetch(FetchDescriptor<PhotoDecision>())) ?? []).map(\.assetID))
+        let allDecisions = (try? context.fetch(FetchDescriptor<PhotoDecision>())) ?? []
+        let decided = Set(allDecisions.map(\.assetID))
         switch mode {
         case .daily:
-            // The daily queue arrives in Milestone 7.
-            queue = []
+            let sessions = (try? context.fetch(FetchDescriptor<Session>())) ?? []
+            let doneToday = DailyPlan.doneToday(decisions: allDecisions, sessions: sessions)
+            // After today's goal is met, "Keep going anyway" starts a fresh count.
+            dailyOffset = doneToday < dailyGoal ? doneToday : 0
+            let queued = DailyPlan.queue(
+                index: index,
+                excluding: decided,
+                limit: DailyPlan.batchSize(goal: dailyGoal, doneToday: doneToday)
+            )
+            queue = queued.map(\.assetID)
+            for photo in queued {
+                queueMonths[photo.assetID] = photo.month
+            }
         case .month(let key):
             queue = (index.months[key] ?? []).filter { !decided.contains($0) }
         }

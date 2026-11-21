@@ -2,7 +2,7 @@
 //  HomeView.swift
 //  ExposureTherapy
 //
-//  SPEC.md → Screens → 1. Home. Today's session card comes in Milestone 7.
+//  SPEC.md → Screens → 1. Home.
 //
 
 import Photos
@@ -15,6 +15,7 @@ struct HomeView: View {
     @Query private var decisions: [PhotoDecision]
     @Query private var deletedPhotos: [DeletedPhoto]
     @Query private var sessions: [Session]
+    @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
     /// The year picked with the chevrons; nil means the default year.
     @State private var selectedYear: Int?
 
@@ -33,6 +34,7 @@ struct HomeView: View {
 
                 if library.hasLoaded {
                     statTiles(snapshot)
+                    todayCard
                     LibraryProgressView(reviewed: progress.reviewedPhotos, total: progress.totalPhotos)
                         .padding(.top, 8)
                     yearGrid(progress)
@@ -86,6 +88,22 @@ struct HomeView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+
+    private var todayCard: some View {
+        let doneToday = DailyPlan.doneToday(decisions: decisions, sessions: sessions)
+        let queue = DailyPlan.queue(
+            index: library.index,
+            excluding: Set(decisions.map(\.assetID)),
+            limit: DailyPlan.batchSize(goal: dailyGoal, doneToday: doneToday)
+        )
+        return TodayCardView(
+            count: queue.count,
+            startMonth: queue.first?.month,
+            isDoneForToday: doneToday >= dailyGoal
+        ) {
+            router.push(.swipeDeck(.daily))
+        }
     }
 
     private func statTiles(_ snapshot: LibrarySnapshot) -> some View {

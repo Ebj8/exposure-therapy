@@ -26,6 +26,7 @@ struct SwipeDeckView: View {
     @State private var isShowingHeart = false
     @State private var isPickingAlbum = false
     @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
+    @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
 
     /// Drag distance that commits a decision, and that fully shows a stamp.
     private let commitDistance: CGFloat = 120
@@ -66,7 +67,7 @@ struct SwipeDeckView: View {
         .background(.cream)
         .toolbar(.hidden, for: .navigationBar)
         .task {
-            model.load(index: library.index, context: modelContext)
+            model.load(index: library.index, dailyGoal: dailyGoal, context: modelContext)
             prefetchUpcoming()
         }
         .onChange(of: model.position) { oldPosition, _ in
@@ -128,7 +129,7 @@ struct SwipeDeckView: View {
 
     private var positionText: String {
         switch model.mode {
-        case .daily: "\(model.displayPosition) of \(model.queue.count) today"
+        case .daily: "\(model.dailyOffset + model.displayPosition) of \(model.dailyOffset + model.queue.count) today"
         case .month: "\(model.displayPosition) of \(model.queue.count)"
         }
     }
@@ -418,6 +419,15 @@ struct SwipeDeckView: View {
 #Preview {
     NavigationStack {
         SwipeDeckView(mode: .month(MonthKey(year: 2019, month: 6)))
+    }
+    .environment(Router())
+    .environment(PreviewData.library())
+    .modelContainer(PreviewData.container)
+}
+
+#Preview("Daily") {
+    NavigationStack {
+        SwipeDeckView(mode: .daily)
     }
     .environment(Router())
     .environment(PreviewData.library())
