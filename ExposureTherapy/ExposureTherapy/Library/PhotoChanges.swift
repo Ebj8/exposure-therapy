@@ -2,9 +2,9 @@
 //  PhotoChanges.swift
 //  ExposureTherapy
 //
-//  SPEC.md → Gestures and interactions. The edits the app makes in Apple
-//  Photos for hearts, albums and undo. Deleting lives in the Breakup flow
-//  only (Milestone 5).
+//  SPEC.md → Gestures and interactions, and Deletion (Breakup). The edits
+//  the app makes in Apple Photos. `deletePhotos` must only be called from
+//  the Breakup flow.
 //
 
 import Photos
@@ -14,6 +14,21 @@ nonisolated struct PhotoAlbum: Identifiable, Hashable, Sendable {
     let id: String
     let title: String
     let count: Int
+}
+
+/// What to record about a photo before it's deleted, so stats survive it.
+nonisolated struct DeletionCandidate: Sendable {
+    let assetID: String
+    let bytes: Int64
+    /// `MonthKey.rawValue`, or `MonthKey.undatedRawValue`.
+    let monthKey: String
+}
+
+nonisolated enum DeletionResult: Sendable {
+    case deleted
+    /// You tapped Don't Allow / Cancel on iOS's confirmation.
+    case cancelled
+    case failed
 }
 
 /// Every function here runs off the main actor; PhotoKit change blocks run
@@ -90,6 +105,43 @@ nonisolated enum PhotoChanges {
             ))
         }
         return albums.reversed()
+    }
+
+    // MARK: Breakup
+
+    /// Reads size and month for each photo still in the library. Photos that
+    /// are already gone are left out.
+    @concurrent
+    static func deletionCandidates(for assetIDs: [String]) async -> [DeletionCandidate] {
+        let result = PHAsset.fetchAssets(withLocalIdentifiers: assetIDs, options: nil)
+        var candidates: [DeletionCandidate] = []
+        result.enumerateObjects { asset, _, _ in
+            let monthKey = asset.creationDate.map { MonthKey(date: $0).rawValue } ?? MonthKey.undatedRawValue
+            candidates.append(DeletionCandidate(
+                assetID: asset.localIdentifier,
+                bytes: CardImageLoader.fileSize(of: asset) ?? 0,
+                monthKey: monthKey
+            ))
+        }
+        return candidates
+    }
+
+    /// Moves the photos to Recently Deleted. iOS asks you to confirm first.
+    /// Only the Breakup flow (SPEC.md → Deletion) may call this.
+    @concurrent
+    static func deletePhotos(_ assetIDs: [String]) async -> DeletionResult {
+        guard !assetIDs.isEmpty else { return .deleted }
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let assets = PHAsset.fetchAssets(withLocalIdentifiers: assetIDs, options: nil)
+                PHAssetChangeRequest.deleteAssets(assets)
+            }
+            return .deleted
+        } catch let error as PHPhotosError where error.code == .userCancelled {
+            return .cancelled
+        } catch {
+            return .failed
+        }
     }
 
     // MARK: Helpers

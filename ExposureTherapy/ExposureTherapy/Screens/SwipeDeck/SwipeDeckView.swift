@@ -398,7 +398,9 @@ struct SwipeDeckView: View {
 
     private var exesChip: some View {
         Button {
-            router.push(.yourExes)
+            if let sessionID = model.sessionID {
+                router.push(.yourExes(sessionID: sessionID))
+            }
         } label: {
             Label(model.exesCount == 1 ? "1 ex this session" : "\(model.exesCount) exes this session", systemImage: "xmark")
                 .font(.inter(15, .bold))
@@ -408,6 +410,8 @@ struct SwipeDeckView: View {
                 .background(.blush, in: Capsule())
         }
         .buttonStyle(.plain)
+        // With zero exes there's nothing to review (SPEC.md → Your exes, 6).
+        .disabled(model.exesCount == 0)
     }
 }
 

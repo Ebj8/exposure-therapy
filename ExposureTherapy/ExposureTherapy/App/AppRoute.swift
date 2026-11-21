@@ -18,7 +18,8 @@ enum DeckMode: Hashable {
 /// Screens pushed on top of Home.
 enum AppRoute: Hashable {
     case swipeDeck(DeckMode)
-    case yourExes
+    /// The exes of one session.
+    case yourExes(sessionID: UUID)
     case sessionComplete
     case settings
 }

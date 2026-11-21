@@ -17,8 +17,6 @@ final class SwipeDeckModel {
     private(set) var queue: [String] = []
     /// Index in `queue` of the card on top.
     private(set) var position = 0
-    /// Unmatched photos in this session, waiting for a Breakup.
-    private(set) var exesCount = 0
     private(set) var isLoaded = false
 
     /// This session's decisions, oldest first, for multi-step undo.
@@ -29,6 +27,16 @@ final class SwipeDeckModel {
 
     init(mode: DeckMode) {
         self.mode = mode
+    }
+
+    /// Unmatched photos in this session, waiting for a Breakup. Computed from
+    /// the records, so rescues on Your exes show up here too.
+    var exesCount: Int {
+        history.filter { $0.decision == .unmatch }.count
+    }
+
+    var sessionID: UUID? {
+        session?.id
     }
 
     var title: String {
@@ -88,7 +96,6 @@ final class SwipeDeckModel {
                 sortBy: [SortDescriptor(\.decidedAt)]
             )
             history = (try? context.fetch(descriptor)) ?? []
-            exesCount = history.filter { $0.decision == .unmatch }.count
         }
         isLoaded = true
     }
@@ -129,9 +136,7 @@ final class SwipeDeckModel {
         )
         context.insert(record)
         history.append(record)
-        if decision == .unmatch {
-            exesCount += 1
-        } else {
+        if decision != .unmatch {
             session.keptCount += 1
         }
         // Save right away so decisions survive the app being quit.
@@ -156,9 +161,7 @@ final class SwipeDeckModel {
         guard let record = history.popLast() else { return }
         let assetID = record.assetID
 
-        if record.decision == .unmatch {
-            exesCount = max(exesCount - 1, 0)
-        } else if let session {
+        if record.decision != .unmatch, let session {
             session.keptCount = max(session.keptCount - 1, 0)
         }
         context.delete(record)
@@ -188,8 +191,8 @@ final class SwipeDeckModel {
     /// Where Done, or running out of cards, leads: Your exes when there are
     /// any, otherwise Session complete. A session with zero exes ends here.
     func finish(context: ModelContext) -> AppRoute {
-        if exesCount > 0 {
-            return .yourExes
+        if exesCount > 0, let session {
+            return .yourExes(sessionID: session.id)
         }
         if let session {
             session.endedAt = .now

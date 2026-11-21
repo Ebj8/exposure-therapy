@@ -41,6 +41,13 @@ nonisolated final class CardImageLoader: @unchecked Sendable {
         return CardPhoto(image: image, creationDate: asset.creationDate, fileSize: Self.fileSize(of: asset))
     }
 
+    /// Loads just the image, e.g. a grid thumbnail.
+    @concurrent
+    func image(for assetID: String, targetSize: CGSize) async -> UIImage? {
+        guard let asset = Self.assets(for: [assetID]).first else { return nil }
+        return await requestImage(for: asset, targetSize: targetSize)
+    }
+
     /// Starts loading upcoming cards into the cache.
     func startCaching(_ assetIDs: [String], targetSize: CGSize) {
         guard !assetIDs.isEmpty else { return }

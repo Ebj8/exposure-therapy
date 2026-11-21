@@ -113,7 +113,6 @@ struct HomeView: View {
             Text("DEBUG · SCREENS")
                 .font(.inter(12, .bold))
                 .foregroundStyle(.muted)
-            Button("Your exes") { router.push(.yourExes) }
             Button("Session complete") { router.push(.sessionComplete) }
         }
         .font(.inter(16, .semibold))

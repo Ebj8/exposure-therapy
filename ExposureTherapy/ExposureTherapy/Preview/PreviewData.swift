@@ -106,6 +106,9 @@ enum PreviewData {
         PhotoAlbum(id: "preview-album-1", title: "Recipes", count: 17),
     ]
 
+    /// An open June 2019 session with 14 exes waiting for a Breakup.
+    static let exesSessionID = UUID()
+
     /// An in-memory store holding the sample decisions and deletions.
     static let container: ModelContainer = {
         do {
@@ -117,6 +120,11 @@ enum PreviewData {
             let sessionID = UUID()
             for id in reviewedIDs {
                 context.insert(PhotoDecision(assetID: id, decision: .keep, sessionID: sessionID))
+            }
+            let june = MonthKey(year: 2019, month: 6)
+            context.insert(Session(id: exesSessionID, mode: .month, monthKey: june.rawValue))
+            for number in 31..<45 {
+                context.insert(PhotoDecision(assetID: assetID(june, number), decision: .unmatch, sessionID: exesSessionID))
             }
             for (number, monthKey) in deletedMonthKeys.enumerated() {
                 context.insert(DeletedPhoto(assetID: "preview-deleted-\(number)", bytes: 2_400_000, monthKey: monthKey))

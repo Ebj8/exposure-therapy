@@ -9,6 +9,7 @@
 
 import Foundation
 import Photos
+import UIKit
 
 @Observable
 final class PhotoLibrary {
@@ -63,6 +64,14 @@ final class PhotoLibrary {
         imageLoader.stopCaching(assetIDs, targetSize: targetSize)
     }
 
+    /// Loads a grid thumbnail at `targetSize` pixels.
+    func thumbnail(for assetID: String, targetSize: CGSize) async -> UIImage? {
+        if isPreview {
+            return PreviewData.cardPhoto(for: assetID).image
+        }
+        return await imageLoader.image(for: assetID, targetSize: targetSize)
+    }
+
     // MARK: Changes in Apple Photos
 
     /// Returns true if this call changed the Favorite flag.
@@ -91,6 +100,21 @@ final class PhotoLibrary {
     func albums() async -> [PhotoAlbum] {
         if isPreview { return PreviewData.albums }
         return await PhotoChanges.albums()
+    }
+
+    // MARK: Breakup
+
+    func deletionCandidates(for assetIDs: [String]) async -> [DeletionCandidate] {
+        if isPreview {
+            return assetIDs.map { DeletionCandidate(assetID: $0, bytes: 2_400_000, monthKey: "2019-06") }
+        }
+        return await PhotoChanges.deletionCandidates(for: assetIDs)
+    }
+
+    /// Only the Breakup flow (SPEC.md → Deletion) may call this.
+    func deletePhotos(_ assetIDs: [String]) async -> DeletionResult {
+        if isPreview { return .deleted }
+        return await PhotoChanges.deletePhotos(assetIDs)
     }
 
     // MARK: Access and loading

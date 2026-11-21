@@ -57,7 +57,7 @@ struct RootView: View {
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
                     case .swipeDeck(let mode): SwipeDeckView(mode: mode)
-                    case .yourExes: YourExesView()
+                    case .yourExes(let sessionID): YourExesView(sessionID: sessionID)
                     case .sessionComplete: SessionCompleteView()
                     case .settings: SettingsView()
                     }
