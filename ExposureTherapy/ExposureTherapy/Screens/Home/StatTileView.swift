@@ -13,12 +13,15 @@ struct StatTileView: View {
     let value: String
     let label: String
 
+    /// Keeps the values lined up across tiles whatever the icon's shape.
+    @ScaledMetric(relativeTo: .title3) private var iconHeight: CGFloat = 24
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: systemImage)
-                .font(.system(size: 20, weight: .medium))
+                .font(.title3.weight(.medium))
                 .foregroundStyle(iconColor)
-                .frame(height: 24)
+                .frame(height: iconHeight)
                 .accessibilityHidden(true)
 
             Text(value)
@@ -31,8 +34,7 @@ struct StatTileView: View {
             Text(label)
                 .font(.inter(14, relativeTo: .footnote))
                 .foregroundStyle(.muted)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -25,11 +25,15 @@ struct RoundIconButton: View {
 struct RoundIconLabel: View {
     let systemImage: String
 
+    /// Grows with the text size, capped so header rows still fit.
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+
     var body: some View {
+        let scale = min(scale, 1.3)
         Image(systemName: systemImage)
-            .font(.system(size: 18, weight: .medium))
+            .font(.system(size: 18 * scale, weight: .medium))
             .foregroundStyle(.plum)
-            .frame(width: Size.minTapTarget, height: Size.minTapTarget)
+            .frame(width: Size.minTapTarget * scale, height: Size.minTapTarget * scale)
             .background(.brandWhite, in: Circle())
             .contentShape(Circle())
     }

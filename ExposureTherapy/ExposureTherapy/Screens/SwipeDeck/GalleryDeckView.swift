@@ -189,8 +189,8 @@ struct GalleryDeckView: View {
                         .foregroundStyle(.muted)
                 }
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
             .accessibilityElement(children: .combine)
 
             Spacer()
@@ -385,7 +385,7 @@ struct GalleryDeckView: View {
     private var goalBanner: some View {
         HStack(spacing: 12) {
             Image(systemName: "party.popper.fill")
-                .font(.system(size: 26))
+                .font(.title2)
                 .foregroundStyle(.blush)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
@@ -753,9 +753,11 @@ struct GalleryDeckView: View {
             }
         } label: {
             Label(exesText, systemImage: "xmark")
-                .font(.inter(15, .bold))
+                .font(.inter(15, .bold, relativeTo: .subheadline))
                 .foregroundStyle(.roseDark)
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, 22)
+                .padding(.vertical, 6)
                 .frame(minHeight: Size.minTapTarget)
                 .background(.blush, in: Capsule())
         }

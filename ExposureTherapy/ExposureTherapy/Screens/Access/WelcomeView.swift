@@ -13,9 +13,7 @@ struct WelcomeView: View {
     @Environment(PhotoLibrary.self) private var library
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.blockLoose) {
-            Spacer()
-
+        AccessScreenLayout {
             Image("AppIconImage")
                 .resizable()
                 .frame(width: 88, height: 88)
@@ -30,17 +28,12 @@ struct WelcomeView: View {
             Text("Exposure Therapy shows your photos one at a time so you can decide which to keep. Nothing leaves your iPhone.")
                 .font(.inter(16))
                 .foregroundStyle(.muted)
-
-            Spacer()
-
+        } action: {
             Button("Allow photo access") {
                 Task { await library.requestAccess() }
             }
             .buttonStyle(.pill)
         }
-        .padding(Spacing.screen)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(.cream)
     }
 }
 

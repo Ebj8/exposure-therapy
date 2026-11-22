@@ -14,6 +14,7 @@ struct SessionCompleteView: View {
 
     @Environment(Router.self) private var router
     @Environment(PhotoLibrary.self) private var library
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var sessions: [Session]
     @Query private var decisions: [PhotoDecision]
     @Query private var deletedPhotos: [DeletedPhoto]
@@ -98,7 +99,8 @@ struct SessionCompleteView: View {
     // MARK: Stats
 
     private func statGrid(snapshot: LibrarySnapshot) -> some View {
-        let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+        // One column at accessibility text sizes, so labels have room.
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
         let streak = snapshot.streak
         return LazyVGrid(columns: columns, spacing: 12) {
             statTile(value: (session?.deletedCount ?? 0).formatted(), label: "exes let go")
@@ -122,8 +124,7 @@ struct SessionCompleteView: View {
             Text(label)
                 .font(.inter(15, relativeTo: .subheadline))
                 .foregroundStyle(.brandWhite.opacity(0.85))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -165,7 +166,7 @@ struct SessionCompleteView: View {
     private func monthDoneBanner(month: MonthKey, percent: Int) -> some View {
         HStack(spacing: 14) {
             Image(systemName: "checkmark")
-                .font(.system(size: 20, weight: .bold))
+                .font(.title3.bold())
                 .foregroundStyle(.brandWhite)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {

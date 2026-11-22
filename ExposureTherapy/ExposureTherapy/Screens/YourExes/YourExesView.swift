@@ -18,6 +18,8 @@ struct YourExesView: View {
     @State private var didFail = false
     /// Set when a Breakup completes, for a success haptic.
     @State private var didBreakUp = false
+    /// The warning icon's circle, which grows with the text.
+    @ScaledMetric(relativeTo: .body) private var warningBadgeSide: CGFloat = 36
 
     /// Grid thumbnails are requested at 200 pt (SPEC.md → Reading the library).
     private var thumbnailSize: CGSize {
@@ -68,8 +70,12 @@ struct YourExesView: View {
         VStack(alignment: .leading, spacing: Spacing.block) {
             ZStack {
                 Text(model.sessionLabel)
-                    .font(.inter(15))
+                    .font(.inter(15, relativeTo: .subheadline))
                     .foregroundStyle(.muted)
+                    .multilineTextAlignment(.center)
+                    // Clear of the back button, so large text wraps
+                    // instead of running into it.
+                    .padding(.horizontal, Size.minTapTarget + 8)
                 HStack {
                     RoundIconButton(systemImage: "chevron.left", accessibilityLabel: "Back to swiping") {
                         router.pop()
@@ -124,7 +130,7 @@ struct YourExesView: View {
                         ProgressView().tint(.brandWhite)
                     } else {
                         Image(systemName: "heart.slash")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.title3.bold())
                             .accessibilityHidden(true)
                     }
                     Text("Breakup")
@@ -147,9 +153,9 @@ struct YourExesView: View {
     private var warningCard: some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.coral)
-                .frame(width: 36, height: 36)
+                .frame(width: warningBadgeSide, height: warningBadgeSide)
                 .background(.blush, in: Circle())
                 .accessibilityHidden(true)
 

@@ -11,7 +11,7 @@ struct LimitedAccessBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 18, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(.rose)
                 .accessibilityHidden(true)
 

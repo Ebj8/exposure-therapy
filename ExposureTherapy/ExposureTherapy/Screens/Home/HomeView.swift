@@ -46,8 +46,6 @@ struct HomeView: View {
                     LibraryProgressView(reviewed: progress.reviewedPhotos, total: progress.totalPhotos)
                         .padding(.top, 8)
                     yearGrid(progress)
-                        // Month tiles are fixed squares; past this size labels can't fit.
-                        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 }
             }
             .padding(.horizontal, Spacing.screen)
@@ -59,15 +57,19 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Image("AppIconImage")
-                .resizable()
-                .frame(width: Size.headerIcon, height: Size.headerIcon)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.headerIcon, style: .continuous))
-                .accessibilityHidden(true)
+            // At accessibility text sizes the title needs the room.
+            if !dynamicTypeSize.isAccessibilitySize {
+                Image("AppIconImage")
+                    .resizable()
+                    .frame(width: Size.headerIcon, height: Size.headerIcon)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.headerIcon, style: .continuous))
+                    .accessibilityHidden(true)
+            }
 
             Text("Exposure Therapy")
                 .font(.bricolage(19, relativeTo: .headline))
                 .foregroundStyle(.plum)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
 
@@ -76,8 +78,6 @@ struct HomeView: View {
             }
         }
         .padding(.top, 8)
-        // The header is a fixed row; past this size the title crowds the icon.
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     private var title: some View {

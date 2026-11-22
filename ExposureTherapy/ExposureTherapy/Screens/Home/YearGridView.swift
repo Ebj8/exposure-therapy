@@ -12,7 +12,13 @@ struct YearGridView: View {
     @Binding var year: Int
     let onSelectMonth: (MonthKey) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 6)
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Six months to a row; three at accessibility text sizes, so the
+    /// labels have room to grow.
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 6), count: dynamicTypeSize.isAccessibilitySize ? 3 : 6)
+    }
 
     var body: some View {
         VStack(spacing: Spacing.block) {
@@ -44,7 +50,7 @@ struct YearGridView: View {
                     .font(.bricolage(22, relativeTo: .title2))
                     .foregroundStyle(.plum)
                 Text("\(progress.doneCount(in: year)) of 12 months done")
-                    .font(.inter(15))
+                    .font(.inter(15, relativeTo: .subheadline))
                     .foregroundStyle(.muted)
             }
             .accessibilityElement(children: .combine)

@@ -54,7 +54,7 @@ struct TodayCardView: View {
                     HStack(spacing: 10) {
                         Text(isDoneForToday ? "Keep going" : "Start swiping")
                         Image(systemName: "arrow.right")
-                            .font(.system(size: 17, weight: .bold))
+                            .font(.body.bold())
                             .accessibilityHidden(true)
                     }
                 }

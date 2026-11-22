@@ -40,7 +40,7 @@ struct MonthTileView: View {
             switch month.status {
             case .done:
                 Image(systemName: "checkmark")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.caption.bold())
                     .foregroundStyle(.brandWhite)
             case .inProgress(let percent):
                 Text("\(percent)%")

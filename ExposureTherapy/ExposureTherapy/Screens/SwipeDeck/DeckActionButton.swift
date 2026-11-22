@@ -22,7 +22,11 @@ struct DeckActionButton: View {
     let diameter: CGFloat
     let action: () -> Void
 
+    /// Grows with the text size, capped so the row still fits the screen.
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
+
     var body: some View {
+        let diameter = diameter * min(scale, 1.2)
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: diameter * 0.4, weight: .bold))

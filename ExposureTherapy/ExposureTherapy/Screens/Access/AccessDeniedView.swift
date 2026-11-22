@@ -10,9 +10,7 @@ import SwiftUI
 
 struct AccessDeniedView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.blockLoose) {
-            Spacer()
-
+        AccessScreenLayout {
             Image(systemName: "photo.badge.exclamationmark")
                 .font(.system(size: 44))
                 .foregroundStyle(.rose)
@@ -26,15 +24,10 @@ struct AccessDeniedView: View {
             Text("Exposure Therapy needs access to your photo library to show you photos. Turn it on in Settings under Photos, then come back.")
                 .font(.inter(16))
                 .foregroundStyle(.muted)
-
-            Spacer()
-
+        } action: {
             OpenSettingsButton()
                 .buttonStyle(.pill)
         }
-        .padding(Spacing.screen)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(.cream)
     }
 }
 
