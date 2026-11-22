@@ -112,7 +112,7 @@ A gallery of one month's photos (or a daily session, which also stays within one
    - Kept photos show a teal "Reviewed" badge at the top.
    - While the deck or a photo loads (including iCloud downloads), show a shimmering skeleton. If a photo can't load, show "Couldn't load this photo" with a "Try again" button.
 4. **Filmstrip:** a row of 7 square thumbnails under the photo: the 3 photos before and after the current one, taken from the gallery (so exes are left out), with the current one centered, larger, with a rose border. Slots past the start or end of the month stay empty. Kept photos get a small teal ✓. Tapping a thumbnail jumps to that photo.
-5. **Hint line:** "Swipe up to break up · swipe to keep". Hide it after the first 10 decisions.
+5. **Hint line:** "Swipe up to break up · swipe left and right to keep". Hide it after the first 10 decisions.
 6. **Button row:** Undo (48 pt) on the left; a group of three centered on the screen, with a gap before it: Add to album (48 pt), Discard ✕ (68 pt, white with a coral border), Heart (48 pt).
 7. **Exes chip:** a blush pill, "✕ {n} exes this session". Tapping it opens Your exes; disabled at zero.
 8. **Going to review:** swiping forward past the month's last photo, deciding the last photo, tapping Done, or (month mode) deciding every photo goes to Your exes (or Session complete with zero exes). If nothing was decided this visit (just browsing), go back Home instead.

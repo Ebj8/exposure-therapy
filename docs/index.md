@@ -4,7 +4,7 @@ title: Exposure Therapy – Support
 
 # Exposure Therapy
 
-Break up with the photos you don't need. Exposure Therapy lets you swipe through your camera roll one month at a time: swipe to keep, swipe up to break up. Nothing is deleted until you say so, and nothing ever leaves your iPhone.
+Break up with the photos you don't need. Exposure Therapy lets you swipe through your camera roll one month at a time: swipe left and right to keep, swipe up to break up. Nothing is deleted until you say so, and nothing ever leaves your iPhone.
 
 [Privacy Policy](privacy.html)
 

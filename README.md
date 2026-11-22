@@ -2,7 +2,7 @@
 
 # Exposure Therapy
 
-An iPhone app for culling your camera roll, one month at a time. Browse each month like a photo gallery: swipe to keep, swipe up to break up with the photos you don't want. Nothing is deleted until you say so, and nothing ever leaves your iPhone.
+An iPhone app for culling your camera roll, one month at a time. Browse each month like a photo gallery: swipe left and right to keep, swipe up to break up with the photos you don't want. Nothing is deleted until you say so, and nothing ever leaves your iPhone.
 
 By Eli Johnson, published by DataThink.
 

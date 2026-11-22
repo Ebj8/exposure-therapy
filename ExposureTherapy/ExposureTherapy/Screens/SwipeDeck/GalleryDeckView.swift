@@ -81,7 +81,7 @@ struct GalleryDeckView: View {
             }
 
             if hintDecisions < 10 {
-                Text("Swipe up to break up · swipe to keep")
+                Text("Swipe up to break up · swipe left and right to keep")
                     .font(.inter(14, relativeTo: .footnote))
                     .foregroundStyle(.muted)
                     .multilineTextAlignment(.center)
