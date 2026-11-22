@@ -46,6 +46,8 @@ Put every color below in the asset catalog as a named color, and use the names i
 | coral | #D9442B | Discard button, delete badges |
 | white | #FFFFFF | Cards, buttons on cream |
 
+The app is light only: `UIUserInterfaceStyle` is `Light` in Info.plist, so system lists and the status bar stay light in Dark Mode.
+
 **Type**
 
 - Headings and big numbers: Bricolage Grotesque ExtraBold (Google Fonts, SIL Open Font License). Titles 34 pt, card headlines 26 pt, section headers 19–20 pt, stat numbers 24–28 pt.
