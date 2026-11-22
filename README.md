@@ -75,6 +75,12 @@ ExposureTherapy/ExposureTherapy/
 
 Version 1.0 is feature-complete and prepared for App Store submission (privacy manifest, encryption declaration, listing drafts). Next: developer program enrollment, TestFlight and review.
 
+## License
+
+The app's code is released under the [MIT License](LICENSE). Copyright (c) 2026 Eli Johnson.
+
+The bundled fonts are not covered by the MIT License. They keep their own license (see Credits).
+
 ## Credits
 
 Fonts: [Bricolage Grotesque](https://github.com/ateliertriay/bricolage) and [Inter](https://github.com/rsms/inter), both under the SIL Open Font License 1.1. License texts ship with the app in `Resources/Licenses`.
