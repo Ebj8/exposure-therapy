@@ -59,6 +59,15 @@ struct SettingsView: View {
             } footer: {
                 Text("Clears your decisions and stats. Your photos are never touched.")
             }
+
+            Section {
+                NavigationLink("Acknowledgements") {
+                    AcknowledgementsView()
+                }
+                LabeledContent("Version", value: appVersion)
+            } header: {
+                Text("About")
+            }
         }
         .font(.inter(16))
         .tint(.rose)
@@ -73,6 +82,14 @@ struct SettingsView: View {
         .alert("Progress reset", isPresented: $didReset) {
             Button("OK", role: .cancel) {}
         }
+    }
+
+    /// e.g. "1.0 (1)": the App Store version and build number, for support.
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
     }
 
     /// Clears decisions and stats only, never photos.

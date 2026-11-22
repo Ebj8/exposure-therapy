@@ -147,6 +147,7 @@ A gallery of one month's photos (or a daily session, which also stays within one
 - Daily session size: 25, 50 or 100.
 - Daily reminder on/off and time.
 - "Reset progress" behind a confirmation alert. It clears decisions and stats only, never photos.
+- About: "Acknowledgements" (the fonts' SIL Open Font License texts, which must ship with the fonts) and the app version, e.g. "1.0 (1)".
 
 ## Gestures and interactions
 
