@@ -48,6 +48,7 @@ struct YearGridView: View {
                     .foregroundStyle(.muted)
             }
             .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
 
             Spacer()
 

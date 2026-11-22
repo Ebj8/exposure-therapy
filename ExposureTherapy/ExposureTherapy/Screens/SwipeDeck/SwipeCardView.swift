@@ -56,6 +56,7 @@ struct SwipeCardView: View {
         }
         .accessibilityElement(children: didFail ? .contain : .ignore)
         .accessibilityLabel(accessibilityDescription)
+        .accessibilityAddTraits(didFail ? [] : .isImage)
     }
 
     private var card: some View {

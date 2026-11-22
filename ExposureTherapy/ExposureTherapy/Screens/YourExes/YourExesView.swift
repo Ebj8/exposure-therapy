@@ -93,7 +93,7 @@ struct YourExesView: View {
 
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: 10) {
-            ForEach(model.exes) { ex in
+            ForEach(Array(model.exes.enumerated()), id: \.element.id) { index, ex in
                 Button {
                     withAnimation(.easeOut(duration: 0.15)) {
                         model.toggleRescue(ex, context: modelContext)
@@ -102,7 +102,7 @@ struct YourExesView: View {
                     ExTileView(assetID: ex.id, isRescued: ex.isRescued, targetSize: thumbnailSize)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Photo")
+                .accessibilityLabel("Photo \(index + 1) of \(model.exes.count)")
                 .accessibilityValue(ex.isRescued ? "Back together" : "Marked for delete")
                 .accessibilityHint(ex.isRescued ? "Double-tap to mark it for delete again." : "Double-tap to take it back.")
             }
@@ -125,6 +125,7 @@ struct YourExesView: View {
                     } else {
                         Image(systemName: "heart.slash")
                             .font(.system(size: 20, weight: .bold))
+                            .accessibilityHidden(true)
                     }
                     Text("Breakup")
                         .font(.bricolage(22, relativeTo: .title3))

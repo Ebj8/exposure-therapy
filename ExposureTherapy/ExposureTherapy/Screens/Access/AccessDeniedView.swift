@@ -21,6 +21,7 @@ struct AccessDeniedView: View {
             Text("We can't see your photos.")
                 .font(.bricolage(34, relativeTo: .largeTitle))
                 .foregroundStyle(.plum)
+                .accessibilityAddTraits(.isHeader)
 
             Text("Exposure Therapy needs access to your photo library to show you photos. Turn it on in Settings under Photos, then come back.")
                 .font(.inter(16))

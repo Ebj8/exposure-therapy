@@ -351,6 +351,7 @@ struct GalleryDeckView: View {
             Text("That's everyone.")
                 .font(.bricolage(26))
                 .foregroundStyle(.plum)
+                .accessibilityAddTraits(.isHeader)
             Text("Nothing left to review in \(model.title).")
                 .font(.inter(16))
                 .foregroundStyle(.muted)
@@ -407,6 +408,9 @@ struct GalleryDeckView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)
+        .accessibilityAction(named: "Dismiss") {
+            withAnimation(.easeOut(duration: 0.3)) { isCelebrating = false }
+        }
     }
 
     /// Card size in pixels, for image requests.

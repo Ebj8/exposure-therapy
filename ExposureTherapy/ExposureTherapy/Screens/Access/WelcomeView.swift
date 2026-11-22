@@ -25,6 +25,7 @@ struct WelcomeView: View {
             Text("Your camera roll has some explaining to do.")
                 .font(.bricolage(34, relativeTo: .largeTitle))
                 .foregroundStyle(.plum)
+                .accessibilityAddTraits(.isHeader)
 
             Text("Exposure Therapy shows your photos one at a time so you can decide which to keep. Nothing leaves your iPhone.")
                 .font(.inter(16))

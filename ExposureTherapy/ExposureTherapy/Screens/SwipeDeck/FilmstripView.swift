@@ -25,12 +25,14 @@ struct FilmstripView: View {
     private struct Slot: Identifiable {
         let id: String
         let assetID: String?
+        /// Distance from the current photo: negative is earlier.
+        let distance: Int
     }
 
     private var identifiedSlots: [Slot] {
         let middle = slots.count / 2
         return slots.enumerated().map { offset, assetID in
-            Slot(id: assetID ?? "empty-\(offset - middle)", assetID: assetID)
+            Slot(id: assetID ?? "empty-\(offset - middle)", assetID: assetID, distance: offset - middle)
         }
     }
 
@@ -50,8 +52,9 @@ struct FilmstripView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(accessibilityLabel(for: state))
-                    .accessibilityHint("Opens a larger view to compare nearby photos.")
+                    .accessibilityLabel(accessibilityLabel(for: state, distance: slot.distance))
+                    .accessibilityHint(state == .current ? "" : "Shows this photo.")
+                    .accessibilityAddTraits(state == .current ? .isSelected : [])
                 } else {
                     // Past the start or end of the month.
                     Color.clear
@@ -64,12 +67,19 @@ struct FilmstripView: View {
         .animation(.easeOut(duration: 0.2), value: slots)
     }
 
-    private func accessibilityLabel(for state: SwipeDeckModel.NeighborStatus) -> String {
+    /// e.g. "Previous photo, kept" or "3 photos later, not reviewed".
+    private func accessibilityLabel(for state: SwipeDeckModel.NeighborStatus, distance: Int) -> String {
+        let place = switch distance {
+        case -1: "Previous photo"
+        case 1: "Next photo"
+        case ..<0: "\(-distance) photos earlier"
+        default: "\(distance) photos later"
+        }
         switch state {
-        case .current: "This photo"
-        case .kept: "Nearby photo, kept"
-        case .ex: "Nearby photo, marked for delete"
-        case .undecided: "Nearby photo, not reviewed"
+        case .current: return "This photo"
+        case .kept: return "\(place), kept"
+        case .ex: return "\(place), marked for delete"
+        case .undecided: return "\(place), not reviewed"
         }
     }
 }

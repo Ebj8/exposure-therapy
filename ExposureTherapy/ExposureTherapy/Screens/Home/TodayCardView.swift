@@ -23,6 +23,7 @@ struct TodayCardView: View {
                     .font(.inter(14, .bold, relativeTo: .footnote))
                     .tracking(1.5)
                     .foregroundStyle(.blush)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer()
                 if !isDoneForToday && count > 0 {
                     Text("about \(Stats.minutesEstimate(photoCount: count)) min")
@@ -54,6 +55,7 @@ struct TodayCardView: View {
                         Text(isDoneForToday ? "Keep going" : "Start swiping")
                         Image(systemName: "arrow.right")
                             .font(.system(size: 17, weight: .bold))
+                            .accessibilityHidden(true)
                     }
                 }
                 .buttonStyle(.pill)

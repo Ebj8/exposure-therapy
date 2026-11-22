@@ -22,6 +22,7 @@ struct EmptyLibraryView: View {
             Text("Nobody to swipe on yet.")
                 .font(.bricolage(26, relativeTo: .title))
                 .foregroundStyle(.plum)
+                .accessibilityAddTraits(.isHeader)
 
             Text(isLimited
                  ? "You haven't shared any photos with Exposure Therapy. Allow access to some or all of your library to get started."
