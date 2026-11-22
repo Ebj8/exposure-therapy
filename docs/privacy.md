@@ -50,4 +50,4 @@ If this policy ever changes, the updated version will be posted on this page wit
 
 ## Contact
 
-Questions about privacy? Email **[CONTACT EMAIL]**.
+Questions about privacy? Email **johnsone@datathink.dev**.

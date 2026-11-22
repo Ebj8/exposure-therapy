@@ -73,7 +73,7 @@ Data collection: **Data Not Collected**.
 >
 > Other features: heart (marks a Favorite in Photos), add to album, undo, and an optional daily reminder (local notifications only). The app has no accounts, no network features and collects no data.
 
-**Contact:** Eli Johnson · [CONTACT EMAIL] · [PHONE]
+**Contact:** Eli Johnson · johnsone@datathink.dev · phone: enter it directly in App Store Connect (it's shown only to Apple, so it isn't kept in this public repo).
 
 ## Screenshots
 

@@ -10,7 +10,7 @@ Break up with the photos you don't need. Exposure Therapy lets you swipe through
 
 ## Support
 
-Need help or found a bug? Email **[CONTACT EMAIL]** and include your iPhone model and the app version (shown in the app under **Settings → About**).
+Need help or found a bug? Email **johnsone@datathink.dev** and include your iPhone model and the app version (shown in the app under **Settings → About**).
 
 ## Frequently asked questions
 
