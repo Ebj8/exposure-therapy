@@ -31,6 +31,10 @@ struct GalleryDeckView: View {
     /// Set once this visit has moved on to review, so the end-of-month
     /// swipe, Done and "everyone decided" can't push it twice.
     @State private var didFinish = false
+    /// VoiceOver focus on the current photo. After an action on the photo
+    /// itself, focus follows to the photo that takes its place.
+    @AccessibilityFocusState private var focusedPhoto: String?
+    @State private var refocusPhoto = false
 
     @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
     @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
@@ -104,6 +108,12 @@ struct GalleryDeckView: View {
         }
         .onChange(of: model.position) {
             prefetchAround()
+        }
+        .onChange(of: model.currentID) { _, newID in
+            if refocusPhoto {
+                refocusPhoto = false
+                focusedPhoto = newID
+            }
         }
         .onChange(of: cardSize) {
             prefetchAround()
@@ -269,10 +279,6 @@ struct GalleryDeckView: View {
             .onChange(of: proxy.size) { _, size in cardSize = size }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityAction(named: "Next photo") { goForward(keepingCurrent: true) }
-        .accessibilityAction(named: "Previous photo") { goBack() }
-        .accessibilityAction(named: "Break up") { breakUpCurrent() }
-        .accessibilityAction(named: "Heart") { heart() }
     }
 
     private func pageView(_ assetID: String, offset: Int, size: CGSize) -> some View {
@@ -284,7 +290,22 @@ struct GalleryDeckView: View {
             ? (dragOffset.height < 0 ? dragOffset.height : dragOffset.height * 0.2)
             : 0
 
+        // The accessibility modifiers go on the card itself, before the
+        // overlay, so they don't spread to the Reviewed pill.
         return SwipeCardView(assetID: assetID, targetSize: pixelSize)
+        .accessibilityValue(decisionDescription(decision))
+        .accessibilityFocused($focusedPhoto, equals: assetID)
+        // VoiceOver can't swipe the photo, so the swipes (and the buttons
+        // below it) are actions on the photo itself.
+        .accessibilityActions {
+            Button(isOnLastPage ? "Keep and finish" : "Keep and next photo") { cardAction { goForward(keepingCurrent: true) } }
+            if model.position > 0 {
+                Button("Previous photo") { cardAction { goBack() } }
+            }
+            Button("Break up") { cardAction { breakUpCurrent() } }
+            Button("Heart") { cardAction { heart() } }
+            Button("Add to album") { isPickingAlbum = true }
+        }
         .overlay(alignment: .top) {
             if decision != nil {
                 reviewedPill
@@ -294,7 +315,24 @@ struct GalleryDeckView: View {
         .frame(width: size.width, height: size.height)
         .offset(x: CGFloat(offset) * (size.width + pageGap) + horizontal, y: vertical)
         .accessibilityHidden(!isCurrent)
-        .accessibilityValue(decision == nil ? "Not decided" : "Reviewed, kept")
+    }
+
+    private func decisionDescription(_ decision: Decision?) -> String {
+        switch decision {
+        case nil: "Not decided"
+        case .keep: "Kept"
+        case .heart: "Hearted"
+        case .album: "Added to album"
+        case .unmatch: "Broken up"
+        }
+    }
+
+    /// Runs an action chosen on the photo, keeping VoiceOver on the photo
+    /// that replaces it.
+    private func cardAction(_ action: () -> Void) {
+        guard !isAnimating else { return }
+        refocusPhoto = true
+        action()
     }
 
     private var reviewedPill: some View {
@@ -304,6 +342,8 @@ struct GalleryDeckView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(.brandTeal, in: Capsule())
+            // The photo's value already says how it was decided.
+            .accessibilityHidden(true)
     }
 
     private var emptyState: some View {
@@ -548,6 +588,7 @@ struct GalleryDeckView: View {
                 dragAxis = nil
             }
             noteDecision()
+            announce("Broken up. \(exesText).")
             if wasLastPhoto {
                 // That was the month's last photo: on to review. The last
                 // kept photo is where you'll pick up if you come back.
@@ -579,6 +620,7 @@ struct GalleryDeckView: View {
             }
             model.record(.heart, for: assetID, madeFavorite: didChange, context: modelContext)
             noteDecision()
+            announce("Hearted. Added to Favorites.")
             isAnimating = false
             goForward(keepingCurrent: false)
         }
@@ -593,6 +635,7 @@ struct GalleryDeckView: View {
             lastAlbumID = albumID
             model.record(.album, for: assetID, addedToAlbumID: added ? albumID : nil, context: modelContext)
             noteDecision()
+            announce(added ? "Added to album." : "Couldn't add to album.")
             isAnimating = false
             goForward(keepingCurrent: false)
         }
@@ -613,6 +656,7 @@ struct GalleryDeckView: View {
     private func undo() {
         guard !isAnimating, let undone = model.undo(context: modelContext) else { return }
         lockInput(for: .milliseconds(350))
+        announce("Undone.")
         Task {
             if undone.madeFavorite {
                 _ = await library.setFavorite(false, assetID: undone.assetID)
@@ -644,6 +688,15 @@ struct GalleryDeckView: View {
         if hintDecisions < 10 {
             withAnimation { hintDecisions += 1 }
         }
+    }
+
+    /// Spoken feedback for VoiceOver; nothing happens without it.
+    private func announce(_ message: String) {
+        AccessibilityNotification.Announcement(message).post()
+    }
+
+    private var exesText: String {
+        model.exesCount == 1 ? "1 ex this session" : "\(model.exesCount) exes this session"
     }
 
     private func prefetchAround() {
@@ -695,7 +748,7 @@ struct GalleryDeckView: View {
                 router.push(.yourExes(sessionID: sessionID))
             }
         } label: {
-            Label(model.exesCount == 1 ? "1 ex this session" : "\(model.exesCount) exes this session", systemImage: "xmark")
+            Label(exesText, systemImage: "xmark")
                 .font(.inter(15, .bold))
                 .foregroundStyle(.roseDark)
                 .padding(.horizontal, 22)
