@@ -81,6 +81,8 @@ The app's code is released under the [MIT License](LICENSE). Copyright (c) 2026 
 
 The bundled fonts are not covered by the MIT License. They keep their own license (see Credits).
 
+The **Exposure Therapy** name and the app icon (the image files in `ExposureTherapy/ExposureTherapy/Assets.xcassets/AppIcon.appiconset` and `AppIconImage.imageset`) are not covered by the MIT License either; all rights reserved. You're welcome to fork and build on the code, but please give your version a different name and icon.
+
 ## Credits
 
 Fonts: [Bricolage Grotesque](https://github.com/ateliertriay/bricolage) and [Inter](https://github.com/rsms/inter), both under the SIL Open Font License 1.1. License texts ship with the app in `Resources/Licenses`.
