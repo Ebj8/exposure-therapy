@@ -71,10 +71,6 @@ ExposureTherapy/ExposureTherapy/
 | [`AppStore/Listing.md`](AppStore/Listing.md) | App Store listing copy, review notes and screenshot plan |
 | [`Design/`](Design) | Original mockups (from before the gallery redesign) |
 
-## Status
-
-Version 1.0 is feature-complete and prepared for App Store submission (privacy manifest, encryption declaration, listing drafts). Next: developer program enrollment, TestFlight and review.
-
 ## License
 
 The app's code is released under the [MIT License](LICENSE). Copyright (c) 2026 Eli Johnson.
