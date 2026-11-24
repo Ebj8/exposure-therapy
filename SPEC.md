@@ -269,7 +269,7 @@ Every stat is computed from the SwiftData records, so nothing is double-counted.
 - When on, schedule one `UNCalendarNotificationTrigger` notification per day at `reminderTime` for the next 14 days (a single repeating trigger can't skip a day or rotate its text). Refresh them when the app opens or goes to the background, and when settings change.
 - If today's session is finished before reminder time, skip today's notification and keep the following days.
 - Rotate the notification text:
-  - "{n} photos are waiting to hear back."
+  - "Review {n} photos to reach your daily goal."
   - "Your camera roll misses you."
   - "Don't leave {Month Year} on read."
   - "Your {streak}-day streak is on the line." (only when the streak is 2 or more)

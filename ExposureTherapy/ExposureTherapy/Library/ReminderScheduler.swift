@@ -85,7 +85,7 @@ enum ReminderScheduler {
         // A fixed four-line cycle, one step per day. Lines that don't apply
         // (no month to mention, streak under 2) pass to the next line.
         let cycle: [String?] = [
-            count == 1 ? "1 photo is waiting to hear back." : "\(count) photos are waiting to hear back.",
+            count == 1 ? "Review 1 photo to reach your daily goal." : "Review \(count) photos to reach your daily goal.",
             "Your camera roll misses you.",
             context.resumeMonth.map { "Don't leave \($0.title) on read." },
             // Only while the streak is real: today, or tomorrow if today counted.
