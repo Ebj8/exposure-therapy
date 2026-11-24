@@ -22,7 +22,7 @@ nonisolated struct CardPhoto: Sendable {
 nonisolated final class CardImageLoader: @unchecked Sendable {
     private let lock = NSLock()
     private var currentManager = PHCachingImageManager()
-    private let log = Logger(subsystem: "com.elijohnson.ExposureTherapy", category: "Images")
+    private let log = Logger(subsystem: "com.datathink.ExposureTherapy", category: "Images")
 
     /// How long to wait for PhotoKit before retrying, then before giving up.
     /// The retry gets longer because an iCloud download can just be slow.

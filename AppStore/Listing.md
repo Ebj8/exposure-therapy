@@ -8,7 +8,7 @@ Drafts for App Store Connect. Character limits are Apple's; counts were checked 
 | --- | --- |
 | Name (30 max) | Exposure Therapy |
 | Subtitle (30 max) | Break up with your bad photos |
-| Bundle ID | com.elijohnson.ExposureTherapy |
+| Bundle ID | com.datathink.ExposureTherapy |
 | SKU | exposuretherapy1 |
 | Primary category | Photo & Video |
 | Secondary category | Productivity |
