@@ -74,7 +74,7 @@ struct TodayCardView: View {
         if isDoneForToday {
             return "You've hit your goal for today."
         }
-        return count == 1 ? "1 photo is waiting to hear back." : "\(count) photos are waiting to hear back."
+        return count == 1 ? "1 photo to reach your daily goal." : "\(count) photos to reach your daily goal."
     }
 }
 

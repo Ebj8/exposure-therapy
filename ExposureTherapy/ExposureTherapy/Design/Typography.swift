@@ -33,7 +33,7 @@ extension Font {
 #Preview {
     VStack(alignment: .leading, spacing: 12) {
         Text("Ready to let go?").font(.bricolage(34, relativeTo: .largeTitle))
-        Text("50 photos are waiting to hear back.").font(.bricolage(26))
+        Text("50 photos to reach your daily goal.").font(.bricolage(26))
         Text("Exposure Therapy").font(.bricolage(19, relativeTo: .headline))
         Text("Inter Regular 16").font(.inter(16))
         Text("Inter SemiBold 16").font(.inter(16, .semibold))

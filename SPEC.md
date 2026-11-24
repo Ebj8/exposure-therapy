@@ -84,7 +84,7 @@ Four screens make one loop: Home → Swipe deck → Your exes → Session comple
    - Photo icon in plum, "{percent}%", "reviewed".
 4. **Today's session card** (plum background, white text):
    - Eyebrow "TODAY'S SESSION" in light pink, "about {minutes} min" on the right (estimate 6 seconds per photo).
-   - Headline "{count} photos are waiting to hear back."
+   - Headline "{count} photos to reach your daily goal."
    - "Picking up where you left off in {Month Year}."
    - Rose pill button "Start swiping →" opens the Swipe deck in daily mode.
    - When today's goal is met: headline "You've hit your goal for today." and button "Keep going".
