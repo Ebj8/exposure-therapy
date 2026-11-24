@@ -59,7 +59,10 @@ struct GalleryDeckView: View {
     /// Sideways drag that turns the page.
     private let pageDistance: CGFloat = 70
     private let flickVelocity: CGFloat = 700
-    private let pageGap: CGFloat = 16
+    /// Space between photos. Twice the screen margin, so the photos either
+    /// side sit fully off screen (with room for their shadows) instead of
+    /// peeking in at the edges.
+    private let pageGap: CGFloat = Spacing.screen * 2
 
     init(mode: DeckMode) {
         _model = State(initialValue: SwipeDeckModel(mode: mode))
