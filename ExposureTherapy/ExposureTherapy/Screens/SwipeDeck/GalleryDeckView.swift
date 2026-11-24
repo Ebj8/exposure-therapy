@@ -36,6 +36,18 @@ struct GalleryDeckView: View {
     @AccessibilityFocusState private var focusedPhoto: String?
     @State private var refocusPhoto = false
 
+    /// Pinch zoom on the current photo: the settled zoom and pan, plus the
+    /// live values while a pinch or pan is under way.
+    @State private var zoom: CGFloat = 1
+    @State private var pan: CGSize = .zero
+    @State private var liveZoom: CGFloat?
+    @State private var livePan: CGSize?
+    /// The current card's size on screen, for keeping the pan in bounds.
+    @State private var zoomedCardSize: CGSize = .zero
+    /// When the last pinch ended. The finger lift that ends a pinch can
+    /// also end the sideways drag, which mustn't then turn the page.
+    @State private var pinchEndedAt: Date = .distantPast
+
     @AppStorage(SettingsKey.lastAlbumID) private var lastAlbumID = ""
     @AppStorage(SettingsKey.dailyGoal) private var dailyGoal = SettingsDefault.dailyGoal
     @AppStorage(SettingsKey.hintDecisions) private var hintDecisions = 0
@@ -110,6 +122,7 @@ struct GalleryDeckView: View {
             prefetchAround()
         }
         .onChange(of: model.currentID) { _, newID in
+            resetZoom(animated: false)
             if refocusPhoto {
                 refocusPhoto = false
                 focusedPhoto = newID
@@ -274,7 +287,15 @@ struct GalleryDeckView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
             .contentShape(Rectangle())
             .gesture(pagerGesture)
-            .simultaneousGesture(TapGesture(count: 2).onEnded { heart() })
+            .simultaneousGesture(zoomGesture)
+            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                // Zoomed in, double-tap zooms back out instead of hearting.
+                if isZoomed {
+                    resetZoom(animated: true)
+                } else {
+                    heart()
+                }
+            })
             .onAppear { cardSize = proxy.size }
             .onChange(of: proxy.size) { _, size in cardSize = size }
         }
@@ -292,7 +313,13 @@ struct GalleryDeckView: View {
 
         // The accessibility modifiers go on the card itself, before the
         // overlay, so they don't spread to the Reviewed pill.
-        return SwipeCardView(assetID: assetID, targetSize: pixelSize)
+        return SwipeCardView(
+            assetID: assetID,
+            targetSize: pixelSize,
+            zoom: isCurrent ? currentZoom : 1,
+            pan: isCurrent ? currentPan : .zero,
+            onDisplaySize: isCurrent ? { zoomedCardSize = $0 } : nil
+        )
         .accessibilityValue(decisionDescription(decision))
         .accessibilityFocused($focusedPhoto, equals: assetID)
         // VoiceOver can't swipe the photo, so the swipes (and the buttons
@@ -433,7 +460,12 @@ struct GalleryDeckView: View {
     private var pagerGesture: some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
-                guard !isAnimating, model.currentID != nil else { return }
+                guard !isAnimating, model.currentID != nil, liveZoom == nil else { return }
+                if isZoomed {
+                    // Zoomed in, one finger looks around the photo.
+                    livePan = clampedPan(CGSize(width: pan.width + value.translation.width, height: pan.height + value.translation.height), zoom: zoom)
+                    return
+                }
                 if dragAxis == nil {
                     dragAxis = abs(value.translation.width) > abs(value.translation.height) ? .horizontal : .vertical
                 }
@@ -446,6 +478,16 @@ struct GalleryDeckView: View {
                 dragOffset = translation
             }
             .onEnded { value in
+                if liveZoom != nil || Date.now.timeIntervalSince(pinchEndedAt) < 0.3 {
+                    // The end of a pinch, not a swipe.
+                    springBack()
+                    return
+                }
+                if isZoomed {
+                    pan = clampedPan(CGSize(width: pan.width + value.translation.width, height: pan.height + value.translation.height), zoom: zoom)
+                    livePan = nil
+                    return
+                }
                 guard !isAnimating else {
                     springBack()
                     return
@@ -474,6 +516,78 @@ struct GalleryDeckView: View {
                     springBack()
                 }
             }
+    }
+
+    // MARK: Zoom
+
+    private let maxZoom: CGFloat = 5
+
+    private var currentZoom: CGFloat { liveZoom ?? zoom }
+    private var currentPan: CGSize { livePan ?? pan }
+    private var isZoomed: Bool { zoom > 1 }
+
+    /// Pinch to zoom around your fingers; let go and it stays zoomed until
+    /// you pinch back out or double-tap.
+    private var zoomGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                guard !isAnimating, hasPhoto else { return }
+                if liveZoom == nil {
+                    // A sideways or upward drag may have started with the
+                    // first finger; put the photo back in place.
+                    dragOffset = .zero
+                    dragAxis = nil
+                }
+                // A little give below 1, so pinching out feels elastic.
+                let newZoom = min(max(zoom * value.magnification, 0.8), maxZoom)
+                // Keep the point between your fingers where it is.
+                let anchor = CGSize(
+                    width: value.startLocation.x - cardSize.width / 2,
+                    height: value.startLocation.y - cardSize.height / 2
+                )
+                let ratio = newZoom / zoom
+                let anchoredPan = CGSize(
+                    width: anchor.width - (anchor.width - pan.width) * ratio,
+                    height: anchor.height - (anchor.height - pan.height) * ratio
+                )
+                liveZoom = newZoom
+                livePan = clampedPan(anchoredPan, zoom: newZoom)
+            }
+            .onEnded { _ in
+                pinchEndedAt = .now
+                let endZoom = liveZoom ?? zoom
+                let endPan = livePan ?? pan
+                if endZoom < 1.05 {
+                    resetZoom(animated: true)
+                } else {
+                    zoom = endZoom
+                    pan = clampedPan(endPan, zoom: endZoom)
+                    liveZoom = nil
+                    livePan = nil
+                }
+            }
+    }
+
+    /// Keeps the zoomed photo covering its card: no panning past its edges.
+    private func clampedPan(_ pan: CGSize, zoom: CGFloat) -> CGSize {
+        let size = zoomedCardSize == .zero ? cardSize : zoomedCardSize
+        let maxX = max(size.width * (zoom - 1) / 2, 0)
+        let maxY = max(size.height * (zoom - 1) / 2, 0)
+        return CGSize(
+            width: min(max(pan.width, -maxX), maxX),
+            height: min(max(pan.height, -maxY), maxY)
+        )
+    }
+
+    private func resetZoom(animated: Bool) {
+        var transaction = Transaction(animation: animated ? .spring(response: 0.35, dampingFraction: 0.85) : nil)
+        transaction.disablesAnimations = !animated
+        withTransaction(transaction) {
+            zoom = 1
+            pan = .zero
+            liveZoom = nil
+            livePan = nil
+        }
     }
 
     private func springBack() {

@@ -162,6 +162,7 @@ Every gesture also has a button, so the app is usable without swiping. Nothing i
 | Swipe up, or ✕ | Break up: the photo leaves the gallery and joins this session's exes | Nothing yet |
 | Double-tap the photo, or the heart button | Heart, which also keeps, then show the next photo | Marked as a Favorite |
 | Album button | Keep and file, then show the next photo | Added to the chosen album |
+| Pinch the photo | None: zoom in to check details | Nothing |
 | Undo | Reverses the last decision or change of mind | Removes the Favorite or album add if that decision made it |
 | Tap a tile in Your exes | Rescue / un-rescue | Nothing |
 | Breakup | Deletes all un-rescued exes | Moved to Recently Deleted after iOS confirms |
@@ -173,6 +174,13 @@ Every gesture also has a button, so the app is usable without swiping. Nothing i
 - Up: the photo follows the finger. Past 120 pt or a fast flick, it flies off the top and the next photo slides into its place; otherwise it springs back. (No stamp: it was hard to see mid-swipe.)
 - The ✕ button plays the same fly-off.
 - Double-tap shows a rose heart that pops and fades over the photo, then the next photo slides in.
+
+**Zoom**
+
+- Pinch the photo to zoom in, up to 5×, around your fingers. The photo zooms inside its card, and a sharper copy loads so small details stay crisp. The date and size chips hide while zoomed.
+- It stays zoomed when you let go. While zoomed, one finger pans around the photo, and swiping (browse and break up) is paused.
+- Pinch back out, or double-tap, to return to the whole photo. (Double-tap only hearts when not zoomed.)
+- The buttons still work while zoomed, and moving to another photo resets the zoom.
 
 **Earlier decisions**
 

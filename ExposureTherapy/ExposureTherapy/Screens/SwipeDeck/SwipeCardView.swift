@@ -12,9 +12,18 @@ struct SwipeCardView: View {
     let assetID: String
     /// Image size to request, in pixels.
     let targetSize: CGSize
+    /// Pinch zoom on the photo (1 is the whole photo), and how far it's
+    /// panned, in points from the center. The deck owns the gestures.
+    var zoom: CGFloat = 1
+    var pan: CGSize = .zero
+    /// Reports the card's size on screen, so the deck can keep panning
+    /// inside the photo.
+    var onDisplaySize: ((CGSize) -> Void)? = nil
 
     @Environment(PhotoLibrary.self) private var library
     @State private var photo: CardPhoto?
+    /// A sharper copy, loaded the first time the photo is zoomed.
+    @State private var detailImage: UIImage?
     @State private var didFail = false
     /// Bumped by "Try again" to load the photo once more.
     @State private var attempt = 0
@@ -39,6 +48,9 @@ struct SwipeCardView: View {
         Group {
             if let aspectRatio {
                 card.aspectRatio(aspectRatio, contentMode: .fit)
+                    .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+                        onDisplaySize?(size)
+                    }
             } else {
                 card
             }
@@ -54,6 +66,10 @@ struct SwipeCardView: View {
                 didFail = loaded == nil
             }
         }
+        .task(id: zoom > 1) {
+            guard zoom > 1, detailImage == nil, photo != nil else { return }
+            detailImage = await library.cardPhoto(for: assetID, targetSize: detailSize)?.image
+        }
         .accessibilityElement(children: didFail ? .contain : .ignore)
         .accessibilityLabel(accessibilityDescription)
         .accessibilityAddTraits(didFail ? [] : .isImage)
@@ -65,9 +81,11 @@ struct SwipeCardView: View {
                 if let photo {
                     // The card matches the photo's shape, so filling it
                     // crops nothing.
-                    Image(uiImage: photo.image)
+                    Image(uiImage: detailImage ?? photo.image)
                         .resizable()
                         .scaledToFill()
+                        .scaleEffect(zoom)
+                        .offset(pan)
                 } else if didFail {
                     VStack(spacing: 12) {
                         Label("Couldn't load this photo", systemImage: "exclamationmark.triangle")
@@ -90,11 +108,20 @@ struct SwipeCardView: View {
             }
             .clipShape(shape)
             .overlay(alignment: .bottom) {
-                if let photo {
+                // Out of the way while you look at details.
+                if let photo, zoom <= 1 {
                     chips(for: photo)
+                        .transition(.opacity)
                 }
             }
             .shadow(color: .plum.opacity(0.18), radius: 18, y: 10)
+    }
+
+    /// Three times the card's pixels, so details stay sharp when zoomed,
+    /// capped so a huge photo doesn't use too much memory.
+    private var detailSize: CGSize {
+        let scale = min(3, 4096 / max(targetSize.width, targetSize.height, 1))
+        return CGSize(width: targetSize.width * scale, height: targetSize.height * scale)
     }
 
     private func chips(for photo: CardPhoto) -> some View {
