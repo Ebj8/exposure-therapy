@@ -6,7 +6,8 @@ Drafts for App Store Connect. Character limits are Apple's; counts were checked 
 
 | Field | Value |
 | --- | --- |
-| Name (30 max) | Exposure Therapy |
+| Name (30 max) | Exposure Therapy: Photo Culler |
+| Home screen name | Exposure Therapy (the app's display name; the store name was taken) |
 | Subtitle (30 max) | Break up with your bad photos |
 | Bundle ID | com.datathink.ExposureTherapy |
 | SKU | exposuretherapy |
@@ -51,7 +52,9 @@ No accounts, no servers, no analytics, no ads. Your photos never leave your iPho
 
 ## Keywords (100 max, comma-separated)
 
-photo cleaner,camera roll,declutter,delete photos,free up storage,swipe,gallery,organize,cleanup
+Words already in the name or subtitle (photo, photos, culler, break up) are indexed from there, so they aren't repeated here.
+
+cleaner,camera roll,declutter,delete,free up storage,swipe,gallery,organize,cleanup,cull
 
 ## Age rating
 
