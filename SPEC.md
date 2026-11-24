@@ -178,9 +178,8 @@ Every gesture also has a button, so the app is usable without swiping. Nothing i
 **Zoom**
 
 - Pinch the photo to zoom in, up to 5×, around your fingers. The photo zooms inside its card, and a sharper copy loads so small details stay crisp. The date and size chips hide while zoomed.
-- It stays zoomed when you let go. While zoomed, one finger pans around the photo, and swiping (browse and break up) is paused.
-- Pinch back out, or double-tap, to return to the whole photo. (Double-tap only hearts when not zoomed.)
-- The buttons still work while zoomed, and moving to another photo resets the zoom.
+- Move both fingers during the pinch to look around the zoomed photo; it stays inside its card.
+- Let go and it springs back to the whole photo. Swiping and double-tap work as usual. (On iOS 17, pinch zooms but two-finger moving isn't available.)
 
 **Earlier decisions**
 
